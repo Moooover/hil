@@ -1,7 +1,7 @@
 use tokio::net::{UnixStream, unix::SocketAddr};
 use serde::{Serialize, Deserialize};
 use std::io;
-use crate::config;
+use crate::config::{Config, Handler};
 
 #[derive(Serialize,Deserialize,Debug)]
 enum HardwareRequest {
@@ -34,13 +34,16 @@ pub async fn handle_stream(accept_result: Result<(UnixStream, SocketAddr), io::E
                 }
             }
 }
-async fn handle_request(req: HardwareRequest, config: &config::Config) {
-    match req {
-        HardwareRequest::MotorWrite{motor, command} => {
-            println!("Motor write: {:?} {:?}", motor, command);
+async fn handle_request(config: &Config, req: HardwareRequest) {
+    match config.resolve(&req) {
+        Some(Handler::Pad(port)) => {
+            println!("Pad port: {}", port);
         }
-        HardwareRequest::EncoderRead{encoder} => {
-            println!("Encoder read: {:?}", encoder);
+        Some(Handler::System(port)) => {
+            println!("System port: {}", port);
+        }
+        None => {
+            println!("No handler found");
         }
     }
 }

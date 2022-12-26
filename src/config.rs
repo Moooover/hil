@@ -1,6 +1,7 @@
 use figment::{Figment, providers::{Format, Toml}};
 use serde::Deserialize;
 use std::collections::HashMap;
+use crate::server::HardwareRequest;
 
 #[derive(Deserialize, Debug)]
 pub struct PadConfig {
@@ -10,12 +11,28 @@ pub struct PadConfig {
 #[derive(Deserialize, Debug)]
 pub struct SystemConfig {
     motors: HashMap<String, u8>,
-    encoders: Option<HashMap<String, u8>>,
 }
 #[derive(Deserialize, Debug)]
 pub struct Config {
     pad: PadConfig,
     system: SystemConfig,
+}
+pub enum Handler {
+    Pad(u8),
+    System(u8),
+}
+
+impl Config {
+    pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
+        match hrq {
+            HardwareRequest::MotorWrite{motor, command} => {
+                self.pad.motors.get(motor).map(|port| Handler::Pad(*port)).or_else(|| self.system.motors.get(motor).map(|port| Handler::System(*port)))
+            }
+            HardwareRequest::EncoderRead{encoder} => {
+                self.pad.encoders.get(encoder).map(|port| Handler::Pad(*port))
+            }
+        }
+    }
 }
 pub fn load_config() {
     let config = Figment::new()
