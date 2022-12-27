@@ -2,13 +2,14 @@ use tokio::net::{UnixStream, unix::SocketAddr};
 use serde::{Serialize, Deserialize};
 use std::io;
 use crate::config::{Config, Handler};
+use crate::pad;
 
 #[derive(Serialize,Deserialize,Debug)]
-enum HardwareRequest {
+pub enum HardwareRequest {
     MotorWrite{motor: String, command: Vec<u8>},
     EncoderRead{encoder: String},
 }
-pub async fn handle_stream(accept_result: Result<(UnixStream, SocketAddr), io::Error>) {
+pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, pad_tx: &tokio::sync::oneshot::Sender<HardwareRequest>) {
     if let Err(e) = accept_result {
         eprintln!("Error accepting connection: {}", e);
         return;
