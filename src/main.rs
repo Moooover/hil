@@ -5,9 +5,14 @@ mod pad;
 use serde::{Serialize, Deserialize};
 use postcard::{to_slice, from_bytes};
 use tokio::net::UnixListener;
+use tracing::{info, error};
 
 #[tokio::main]
 async fn main() {
+    let subscriber = tracing_subscriber::fmt::Subscriber::builder()
+        .with_max_level(tracing::Level::TRACE)
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     let config = config::load_config();
     // Check if file /tmp/hardware.sock exists, if so, delete it
     if std::path::Path::new("/tmp/hardware.sock").exists() {
