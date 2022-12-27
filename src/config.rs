@@ -34,9 +34,10 @@ impl Config {
         }
     }
 }
-pub fn load_config() {
+pub fn load_config() -> Config {
     let config = Figment::new()
         .merge(Toml::file("config.toml").nested());
     let pad_config: SystemConfig = config.select("system").extract().unwrap();
     println!("{:#?}", pad_config);
+    config.extract().unwrap()
 }
