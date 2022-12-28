@@ -3,9 +3,9 @@ Description=Team Rudra's hardware interaction layer
 
 [Service]
 Type=simple
-ExecStart=/opt/spine/spine
+ExecStart=/usr/bin/spine
 Restart=on-failure
-RestartSec=30s
+RestartSec=5s
 StandardError=journal
 StandardOutput=journal
 StandardInput=null
