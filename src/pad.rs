@@ -8,7 +8,7 @@ enum Operation {
     KeepAlive,
     SabertoothWrite(u8, u8),
     SmartelexWrite(u8, [u8; 5]),
-    EncoderRead(u8, u8),
+    EncoderRead,
     PwmWrite(u8, u16),
 }
 
