@@ -11,7 +11,7 @@ pub enum HardwareRequest {
     EncoderRead{encoder: String},
 }
 #[tracing::instrument]
-pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, pad_tx: &tokio::sync::oneshot::Sender<HardwareRequest>) {
+pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, channels: &mut ServerChannels) {
     if let Err(e) = accept_result {
         error!("Error accepting connection: {}", e);
         return;

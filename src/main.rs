@@ -19,11 +19,16 @@ async fn main() {
         std::fs::remove_file("/tmp/hardware.sock").unwrap();
     }
    let listener = UnixListener::bind("/tmp/hardware.sock").unwrap();
-   let (send_to_pad, mut recv_from_server) = tokio::sync::oneshot::channel::<server::HardwareRequest>();
+   let (send_to_pad, mut recv_from_server) = tokio::sync::mpsc::channel::<pad::PadRequest>(100);
+   let (send_to_server, recv_from_pad) = tokio::sync::mpsc::channel::<pad::PadResponse>(100);
+   let mut server_channels = server::ServerChannels {
+       send_to_pad,
+       recv_from_pad,
+   };
    // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
    tokio::spawn(async move {
        loop {
-           server::handle_stream(&config, listener.accept().await, &send_to_pad).await;
+           server::handle_stream(&config, listener.accept().await, &mut server_channels).await;
        }
    });
 
