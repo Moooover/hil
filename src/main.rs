@@ -7,6 +7,10 @@ use postcard::{to_slice, from_bytes};
 use tokio::net::UnixListener;
 use tracing::{info, error};
 
+use git_version::git_version;
+#[allow(dead_code)]
+const GIT_VERSION: &str = git_version!();
+
 #[tokio::main]
 async fn main() {
     let subscriber = tracing_subscriber::fmt::Subscriber::builder()
