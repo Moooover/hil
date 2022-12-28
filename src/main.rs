@@ -41,8 +41,9 @@ async fn main() {
            _ = interval.tick() => {
                pad.keep_alive();
            }
-           _ = &mut recv_from_server => {
-               println!("Received from server");
+           pad_req = recv_from_server.recv() => {
+               let response = pad.respond(pad_req.unwrap());
+               send_to_server.send(response).await.unwrap();
            }
        }
    }
