@@ -1,8 +1,10 @@
-use figment::{Figment, providers::{Format, Toml}};
 use serde::Deserialize;
 use std::collections::HashMap;
 use crate::server::HardwareRequest;
 use tracing::debug;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
 
 #[derive(Default, Deserialize, Debug)]
 pub struct PadConfig {
@@ -37,19 +39,12 @@ impl Config {
 }
 #[tracing::instrument]
 pub fn load_config() -> Config {
-    // Fix this
-    let config = Figment::new()
-        .merge(Toml::file("config.toml").nested());
-    let pad_config: PadConfig = config.select("pad").extract().unwrap();
-    let config = Figment::new()
-        .merge(Toml::file("config.toml").nested());
-    let system_config: SystemConfig = config.select("system").extract().unwrap();
-    let config = Config {
-        pad: pad_config,
-        system: system_config,
-    };
-    // let pad_config: SystemConfig = config.select("system").extract().unwrap();
-    // println!("{:#?}", pad_config);
+    let config_file = File::open("config.toml").unwrap();
+    let mut buf_reader = BufReader::new(config_file);
+    let mut contents = String::new();
+    buf_reader.read_to_string(&mut contents).unwrap();
+
+    let config: Config = toml::from_str(&contents).unwrap();
     debug!("{:#?}", config);
     config
 }
