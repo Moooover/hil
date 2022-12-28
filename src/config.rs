@@ -2,6 +2,7 @@ use figment::{Figment, providers::{Format, Toml}};
 use serde::Deserialize;
 use std::collections::HashMap;
 use crate::server::HardwareRequest;
+use tracing::debug;
 
 #[derive(Deserialize, Debug)]
 pub struct PadConfig {
@@ -34,10 +35,12 @@ impl Config {
         }
     }
 }
+#[tracing::instrument]
 pub fn load_config() -> Config {
     let config = Figment::new()
-        .merge(Toml::file("config.toml").nested());
-    let pad_config: SystemConfig = config.select("system").extract().unwrap();
-    println!("{:#?}", pad_config);
-    config.extract().unwrap()
+        .merge(Toml::file("config.toml").nested()).extract::<Config>().unwrap();
+    // let pad_config: SystemConfig = config.select("system").extract().unwrap();
+    // println!("{:#?}", pad_config);
+    debug!("{:#?}", config);
+    config
 }
