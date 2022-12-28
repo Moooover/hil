@@ -39,7 +39,8 @@ impl Config {
 }
 #[tracing::instrument]
 pub fn load_config() -> Config {
-    let config_file = File::open("config.toml").unwrap();
+    let config_file_path = xdg::BaseDirectories::with_prefix("spine").unwrap().find_config_file("config.toml").unwrap();
+    let config_file = File::open(config_file_path).unwrap();
     let mut buf_reader = BufReader::new(config_file);
     let mut contents = String::new();
     buf_reader.read_to_string(&mut contents).unwrap();
