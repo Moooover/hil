@@ -1,0 +1,12 @@
+[Unit]
+Description=Team Rudra's hardware interaction layer
+
+[Service]
+Type=simple
+ExecStart=/opt/spine/spine
+Restart=on-failure
+RestartSec=30s
+StandardOutput=null
+
+[Install]
+WantedBy=multi-user.target
