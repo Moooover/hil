@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use crate::server::HardwareRequest;
 use tracing::debug;
 
-#[derive(Deserialize, Debug)]
+#[derive(Default, Deserialize, Debug)]
 pub struct PadConfig {
     motors: HashMap<String, u8>,
     encoders: HashMap<String, u8>,
@@ -37,8 +37,17 @@ impl Config {
 }
 #[tracing::instrument]
 pub fn load_config() -> Config {
+    // Fix this
     let config = Figment::new()
-        .merge(Toml::file("config.toml").nested()).extract::<Config>().unwrap();
+        .merge(Toml::file("config.toml").nested());
+    let pad_config: PadConfig = config.select("pad").extract().unwrap();
+    let config = Figment::new()
+        .merge(Toml::file("config.toml").nested());
+    let system_config: SystemConfig = config.select("system").extract().unwrap();
+    let config = Config {
+        pad: pad_config,
+        system: system_config,
+    };
     // let pad_config: SystemConfig = config.select("system").extract().unwrap();
     // println!("{:#?}", pad_config);
     debug!("{:#?}", config);
