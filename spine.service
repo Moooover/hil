@@ -6,7 +6,9 @@ Type=simple
 ExecStart=/opt/spine/spine
 Restart=on-failure
 RestartSec=30s
-StandardOutput=null
+StandardError=journal
+StandardOutput=journal
+StandardInput=null
 
 [Install]
 WantedBy=multi-user.target
