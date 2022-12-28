@@ -26,8 +26,8 @@ impl HardwareResponse {
 
 #[derive(Debug)]
 pub struct ServerChannels {
-    send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
-    recv_from_pad: tokio::sync::mpsc::Receiver<PadResponse>,
+    pub send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
+    pub recv_from_pad: tokio::sync::mpsc::Receiver<PadResponse>,
 }
 #[tracing::instrument]
 pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, channels: &mut ServerChannels) {
