@@ -8,7 +8,6 @@ use tokio::net::UnixListener;
 use tracing::{info, error};
 
 use git_version::git_version;
-#[allow(dead_code)]
 const GIT_VERSION: &str = git_version!();
 
 #[tokio::main]
@@ -17,6 +16,7 @@ async fn main() {
         .with_max_level(tracing::Level::TRACE)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    info!("Starting spine version {}", GIT_VERSION);
     let config = config::load_config();
     // Check if file /tmp/hardware.sock exists, if so, delete it
     if std::path::Path::new("/tmp/hardware.sock").exists() {
