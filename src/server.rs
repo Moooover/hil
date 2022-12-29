@@ -1,16 +1,17 @@
-use tokio::net::{UnixStream, unix::SocketAddr};
-use serde::{Serialize, Deserialize};
-use std::io;
 use crate::config::{Config, Handler};
 use crate::pad::{PadRequest, PadResponse};
-use tracing::{info, error, debug, warn};
+use eyre::Result;
+use serde::{Deserialize, Serialize};
+use std::io;
+use tokio::net::{unix::SocketAddr, UnixStream};
+use tracing::{debug, error, info, warn};
 
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareRequest {
-    MotorWrite{motor: String, command: Vec<u8>},
-    EncoderRead{encoder: String},
+    MotorWrite { motor: String, command: Vec<u8> },
+    EncoderRead { encoder: String },
 }
-#[derive(Serialize,Deserialize,Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
     EncoderValue(i32),
     Ok,
@@ -33,45 +34,49 @@ pub struct ServerChannels {
 pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, channels: &mut ServerChannels) {
     if let Err(e) = accept_result {
         error!("Error accepting connection: {}", e);
-        return;
+        return Ok(());
     }
-    let (stream, _addr) = accept_result.unwrap();
-            info!("New connection: {:?}", stream);
-            stream.readable().await.unwrap();
-            let mut msg = vec![0; 1024];
-            match stream.try_read(&mut msg) {
-                Ok(n) => {
-                    debug!("Read {} bytes", n);
-                    // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
-                    // let encoded_msg = serde_json::to_string(&sample_msg).unwrap();
-                    // debug!("Encoded message: {:?}", encoded_msg);
-                    let hw_req: HardwareRequest = serde_json::from_slice(&msg[..n]).unwrap();
-                    debug!("Message: {:?}", hw_req);
+    let (stream, _addr) = accept_result?;
+    info!("New connection: {:?}", stream);
+    while stream.readable().await.is_ok() {
+        let mut msg = vec![0; 1024];
+        match stream.try_read(&mut msg) {
+            Ok(n) => {
+                debug!("Read {} bytes", n);
+                // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
+                // let encoded_msg = serde_json::to_string(&sample_msg).unwrap();
+                // debug!("Encoded message: {:?}", encoded_msg);
+                let hw_req: HardwareRequest = serde_json::from_slice(&msg[..n])?;
+                debug!("Message: {:?}", hw_req);
 
-                    if let HardwareResponse::EncoderValue(v) = handle_request(config, hw_req, channels).await {
-                        let encoded_resp = serde_json::to_string(&v).unwrap();
-                        debug!("Encoded response: {:?}", encoded_resp);
-                        let resp = encoded_resp.as_bytes();
-                        stream.writable().await.unwrap();
+                if let HardwareResponse::EncoderValue(v) =
+                    handle_request(config, hw_req, channels).await
+                {
+                    let encoded_resp = serde_json::to_string(&v)?;
+                    debug!("Encoded response: {:?}", encoded_resp);
+                    let resp = encoded_resp.as_bytes();
+                    stream.writable().await?;
 
-                        match stream.try_write(resp) {
-                            Ok(n) => {
-                                debug!("Wrote {} bytes", n);
-                            }
-                            Err(e) => {
-                                error!("Error writing to stream: {}", e);
-                            }
+                    match stream.try_write(resp) {
+                        Ok(n) => {
+                            debug!("Wrote {} bytes", n);
+                        }
+                        Err(e) => {
+                            error!("Error writing to stream: {}", e);
                         }
                     }
-
-                }
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    info!("Would block");
-                }
-                Err(e) => {
-                    error!("Error: {:?}", e);
                 }
             }
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                info!("Would block");
+            }
+            Err(e) => {
+                error!("Error: {:?}", e);
+                return Err(e.into());
+            }
+        }
+    }
+    Ok(())
 }
 #[tracing::instrument]
 async fn handle_request(config: &Config, req: HardwareRequest, channels: &mut ServerChannels) -> HardwareResponse {
