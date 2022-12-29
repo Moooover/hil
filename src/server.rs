@@ -4,7 +4,7 @@ use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::io;
 use tokio::net::{unix::SocketAddr, UnixStream};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, warn, span, Level};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareRequest {
@@ -30,7 +30,6 @@ pub struct ServerChannels {
     pub send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
     pub recv_from_pad: tokio::sync::mpsc::Receiver<PadResponse>,
 }
-#[tracing::instrument]
 pub async fn handle_stream(
     config: &Config,
     accept_result: Result<(UnixStream, SocketAddr), io::Error>,
@@ -93,7 +92,6 @@ pub async fn handle_stream(
     }
     Ok(())
 }
-#[tracing::instrument]
 async fn handle_request(
     config: &Config,
     req: HardwareRequest,
@@ -102,6 +100,7 @@ async fn handle_request(
     match config.resolve(&req) {
         Some(Handler::Pad(port)) => {
             let wait_for_response = matches!(req, HardwareRequest::EncoderRead { .. });
+            debug!("Sending request to pad");
             let pad_req = PadRequest::from_hardware_request(port, req);
             channels.send_to_pad.send(pad_req).await.unwrap();
             if wait_for_response {
