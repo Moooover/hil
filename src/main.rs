@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
     tokio::spawn(async move {
         loop {
-            server::handle_stream(&config, listener.accept().await, &mut server_channels).await.wrap_err_with(|| format!("Failure handling new connection")).unwrap();
+            server::handle_stream(&config, listener.accept().await, &mut server_channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
         }
     });
 

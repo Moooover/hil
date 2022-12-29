@@ -50,7 +50,13 @@ pub async fn handle_stream(
                 // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
                 // let encoded_msg = serde_json::to_string(&sample_msg).unwrap();
                 // debug!("Encoded message: {:?}", encoded_msg);
-                let hw_req: HardwareRequest = serde_json::from_slice(&msg[..n])?;
+                let hw_req_stream = serde_json::Deserializer::from_slice(&msg).into_iter::<HardwareRequest>();
+                for hw_req_unchecked in hw_req_stream {
+                    if let Err(_) = hw_req_unchecked {
+                        warn!("Error decoding message");
+                        continue;
+                    }
+                    let hw_req = hw_req_unchecked.unwrap();
                 debug!("Message: {:?}", hw_req);
 
                 if let HardwareResponse::EncoderValue(v) =
@@ -70,6 +76,7 @@ pub async fn handle_stream(
                         }
                     }
                 }
+            }
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 info!("Would block");
