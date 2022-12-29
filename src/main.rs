@@ -6,7 +6,7 @@ use eyre::{WrapErr, Result};
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
 use tokio::net::UnixListener;
-use tracing::{error, info};
+use tracing::{error, info, debug};
 
 use git_version::git_version;
 const GIT_VERSION: &str = git_version!();
@@ -44,11 +44,14 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                pad.keep_alive();
+                pad.keep_alive().await.map_err(|e| error!("Error sending KeepAlive: {}", e)).ok();
             }
             pad_req = recv_from_server.recv() => {
-                let response = pad.respond(pad_req.unwrap());
-                send_to_server.send(response).await.unwrap();
+                debug!("Got request from server: {:?}", pad_req);
+                let response = pad.respond(pad_req.unwrap()).await.wrap_err("Error responding to pad request").unwrap();
+                if matches!(response, pad::PadResponse::EncoderValue(_)) {
+                    send_to_server.send(response).await.map_err(|e| error!("Error sending response to server: {}", e)).ok();
+                }
             }
         }
     }
