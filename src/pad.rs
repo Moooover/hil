@@ -1,7 +1,7 @@
+use crate::server::HardwareRequest;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
 use serialport::{SerialPort, SerialPortType};
-use crate::server::HardwareRequest;
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
@@ -19,10 +19,7 @@ pub struct PadRequest {
 }
 impl PadRequest {
     pub fn from_hardware_request(id: u8, hwrq: HardwareRequest) -> Self {
-        Self {
-            id,
-            body: hwrq,
-        }
+        Self { id, body: hwrq }
     }
 }
 #[derive(Debug)]
@@ -60,9 +57,13 @@ impl PadState {
             }
         }
     }
-    fn setup_serial(&mut self, port: &serialport::SerialPortInfo)  {
+    fn setup_serial(&mut self, port: &serialport::SerialPortInfo) {
         self.serial = Some(serialport::new(&port.port_name, 9600).open().unwrap());
-        self.serial.as_mut().unwrap().set_timeout(std::time::Duration::from_millis(1000)).unwrap();
+        self.serial
+            .as_mut()
+            .unwrap()
+            .set_timeout(std::time::Duration::from_millis(1000))
+            .unwrap();
     }
     pub fn keep_alive(&mut self) {
         let mut buf = [0u8; 64];
@@ -73,7 +74,7 @@ impl PadState {
     }
     pub fn respond(&mut self, pad_rq: PadRequest) -> PadResponse {
         match pad_rq.body {
-            HardwareRequest::MotorWrite{motor: _, command} => {
+            HardwareRequest::MotorWrite { motor: _, command } => {
                 let op = Operation::SabertoothWrite(pad_rq.id, command[0]);
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf).unwrap();
@@ -81,7 +82,7 @@ impl PadState {
                 println!("Written bytes: {:?}", coded);
                 PadResponse::Ok
             }
-            HardwareRequest::EncoderRead{encoder: _} => {
+            HardwareRequest::EncoderRead { encoder: _ } => {
                 let op = Operation::EncoderRead;
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf).unwrap();

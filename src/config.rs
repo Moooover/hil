@@ -1,10 +1,10 @@
+use crate::server::HardwareRequest;
 use serde::Deserialize;
 use std::collections::HashMap;
-use crate::server::HardwareRequest;
-use tracing::debug;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
+use tracing::debug;
 
 #[derive(Default, Deserialize, Debug)]
 pub struct PadConfig {
@@ -28,18 +28,31 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
-            HardwareRequest::MotorWrite{motor, command} => {
-                self.pad.motors.get(motor).map(|port| Handler::Pad(*port)).or_else(|| self.system.motors.get(motor).map(|port| Handler::System(*port)))
-            }
-            HardwareRequest::EncoderRead{encoder} => {
-                self.pad.encoders.get(encoder).map(|port| Handler::Pad(*port))
-            }
+            HardwareRequest::MotorWrite { motor, command } => self
+                .pad
+                .motors
+                .get(motor)
+                .map(|port| Handler::Pad(*port))
+                .or_else(|| {
+                    self.system
+                        .motors
+                        .get(motor)
+                        .map(|port| Handler::System(*port))
+                }),
+            HardwareRequest::EncoderRead { encoder } => self
+                .pad
+                .encoders
+                .get(encoder)
+                .map(|port| Handler::Pad(*port)),
         }
     }
 }
 #[tracing::instrument]
 pub fn load_config() -> Config {
-    let config_file_path = xdg::BaseDirectories::with_prefix("spine").unwrap().find_config_file("config.toml").unwrap();
+    let config_file_path = xdg::BaseDirectories::with_prefix("spine")
+        .unwrap()
+        .find_config_file("config.toml")
+        .unwrap();
     let config_file = File::open(config_file_path).unwrap();
     let mut buf_reader = BufReader::new(config_file);
     let mut contents = String::new();

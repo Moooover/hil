@@ -31,7 +31,11 @@ pub struct ServerChannels {
     pub recv_from_pad: tokio::sync::mpsc::Receiver<PadResponse>,
 }
 #[tracing::instrument]
-pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, SocketAddr), io::Error>, channels: &mut ServerChannels) {
+pub async fn handle_stream(
+    config: &Config,
+    accept_result: Result<(UnixStream, SocketAddr), io::Error>,
+    channels: &mut ServerChannels,
+) -> Result<()> {
     if let Err(e) = accept_result {
         error!("Error accepting connection: {}", e);
         return Ok(());
@@ -79,10 +83,14 @@ pub async fn handle_stream(config: &Config, accept_result: Result<(UnixStream, S
     Ok(())
 }
 #[tracing::instrument]
-async fn handle_request(config: &Config, req: HardwareRequest, channels: &mut ServerChannels) -> HardwareResponse {
+async fn handle_request(
+    config: &Config,
+    req: HardwareRequest,
+    channels: &mut ServerChannels,
+) -> HardwareResponse {
     match config.resolve(&req) {
         Some(Handler::Pad(port)) => {
-            let wait_for_response = matches!(req, HardwareRequest::EncoderRead{..});
+            let wait_for_response = matches!(req, HardwareRequest::EncoderRead { .. });
             let pad_req = PadRequest::from_hardware_request(port, req);
             channels.send_to_pad.send(pad_req).await.unwrap();
             if wait_for_response {
