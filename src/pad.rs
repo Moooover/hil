@@ -1,7 +1,10 @@
 use crate::server::HardwareRequest;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
-use serialport::{SerialPort, SerialPortType};
+use eyre::Result;
+use tokio_serial::{SerialStream, SerialPortType};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tracing::{debug, span, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
@@ -29,7 +32,7 @@ pub enum PadResponse {
 }
 
 pub struct PadState {
-    serial: Option<Box<dyn SerialPort>>,
+    serial: Option<SerialStream>,
 }
 impl PadState {
     pub fn new() -> Self {
@@ -58,39 +61,42 @@ impl PadState {
         }
     }
     fn setup_serial(&mut self, port: &serialport::SerialPortInfo) {
-        self.serial = Some(serialport::new(&port.port_name, 9600).open().unwrap());
-        self.serial
-            .as_mut()
-            .unwrap()
-            .set_timeout(std::time::Duration::from_millis(1000))
-            .unwrap();
+        self.serial = Some(SerialStream::open(&serialport::new(&port.port_name, 9600).timeout(std::time::Duration::from_millis(1000))).unwrap());
+        // self.serial
+        //     .as_mut()
+        //     .unwrap()
+        //     .set_timeout(std::time::Duration::from_millis(1000))
+        //     .unwrap();
     }
-    pub fn keep_alive(&mut self) {
+    pub async fn keep_alive(&mut self) -> Result<()> {
+        let _span_ = span!(Level::TRACE, "PadState::keep_alive").entered();
         let mut buf = [0u8; 64];
         let op = Operation::KeepAlive;
-        let coded = to_slice(&op, &mut buf).unwrap();
-        self.serial.as_mut().unwrap().write(&coded).unwrap();
-        println!("Written bytes: {:?}", coded);
+        let coded = to_slice(&op, &mut buf)?;
+        self.serial.as_mut().unwrap().write_all(coded).await?;
+        debug!("Written bytes: {:?}", coded);
+        Ok(())
     }
-    pub fn respond(&mut self, pad_rq: PadRequest) -> PadResponse {
+    pub async fn respond(&mut self, pad_rq: PadRequest) -> Result<PadResponse> {
+        let _span_ = span!(Level::TRACE, "PadState::respond", pad_rq = ?pad_rq).entered();
         match pad_rq.body {
             HardwareRequest::MotorWrite { motor: _, command } => {
                 let op = Operation::SabertoothWrite(pad_rq.id, command[0]);
                 let mut buf = [0u8; 64];
-                let coded = to_slice(&op, &mut buf).unwrap();
-                self.serial.as_mut().unwrap().write(&coded).unwrap();
-                println!("Written bytes: {:?}", coded);
-                PadResponse::Ok
+                let coded = to_slice(&op, &mut buf)?;
+                self.serial.as_mut().unwrap().write_all(coded).await?;
+                debug!("Written bytes: {:?}", coded);
+                Ok(PadResponse::Ok)
             }
             HardwareRequest::EncoderRead { encoder: _ } => {
                 let op = Operation::EncoderRead;
                 let mut buf = [0u8; 64];
-                let coded = to_slice(&op, &mut buf).unwrap();
-                self.serial.as_mut().unwrap().write(&coded).unwrap();
-                println!("Written bytes: {:?}", coded);
-                let read = self.serial.as_mut().unwrap().read(&mut buf).unwrap();
-                let encoder_values: [i32; 5] = from_bytes(&buf[..read]).unwrap();
-                PadResponse::EncoderValue(encoder_values[pad_rq.id as usize])
+                let coded = to_slice(&op, &mut buf)?;
+                self.serial.as_mut().unwrap().write_all(coded).await?;
+                debug!("Written bytes: {:?}", coded);
+                let read = self.serial.as_mut().unwrap().read(&mut buf).await?;
+                let encoder_values: [i32; 5] = from_bytes(&buf[..read])?;
+                Ok(PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]))
             }
         }
     }
