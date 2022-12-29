@@ -45,6 +45,10 @@ pub async fn handle_stream(
     while stream.readable().await.is_ok() {
         let mut msg = vec![0; 1024];
         match stream.try_read(&mut msg) {
+            Ok(0) => {
+                info!("Connection closed");
+                break;
+            }
             Ok(n) => {
                 debug!("Read {} bytes", n);
                 // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
