@@ -1,16 +1,11 @@
 [pad]
 [pad.motors]
-drive_front_left = 1
-drive_front_right = 2
-drive_rear_left = 3
-drive_rear_right = 4
+drive_front = 2
+drive_rear = 2
 
-suspension_front_left = 5
-suspension_front_right = 6
-suspension_rear_left = 7
-suspension_rear_right = 8
+suspension_front = 3
+suspension_rear = 4
 
-gripper = 8
 [pad.encoders]
 suspension_front_left = 1
 suspension_front_right = 2
