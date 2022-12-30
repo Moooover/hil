@@ -28,7 +28,7 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
-            HardwareRequest::MotorWrite { motor, command } => self
+            HardwareRequest::MotorWrite { motor, command: _ } => self
                 .pad
                 .motors
                 .get(motor)

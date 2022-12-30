@@ -46,7 +46,7 @@ impl PadState {
             return;
         }
         let ports = serialport::available_ports().unwrap();
-        if ports.len() == 0 {
+        if ports.is_empty() {
             println!("No serial ports found!");
             return;
         }

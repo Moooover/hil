@@ -4,7 +4,7 @@ use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::io;
 use tokio::net::{unix::SocketAddr, UnixStream};
-use tracing::{debug, error, info, warn, span, Level};
+use tracing::{debug, error, info, warn};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareRequest {
@@ -55,7 +55,7 @@ pub async fn handle_stream(
                 // debug!("Encoded message: {:?}", encoded_msg);
                 let hw_req_stream = serde_json::Deserializer::from_slice(&msg).into_iter::<HardwareRequest>();
                 for hw_req_unchecked in hw_req_stream {
-                    if let Err(_) = hw_req_unchecked {
+                    if hw_req_unchecked.is_err() {
                         warn!("Error decoding message");
                         continue;
                     }

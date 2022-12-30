@@ -1,7 +1,5 @@
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
-use tokio::net::UnixListener;
-use tracing::{error, info};
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
     KeepAlive,
@@ -22,9 +20,9 @@ fn main() {
     loop {
         let op = Operation::EncoderRead;
         let coded = to_slice(&op, &mut buf).unwrap();
-        port.write(&coded).unwrap();
+        let _ = port.write(coded).unwrap();
         println!("Written bytes: {:?}", coded);
-        let mut read = port.read(&mut buf).unwrap();
+        let read = port.read(&mut buf).unwrap();
         let EncoderValues { values } = from_bytes(&buf[..read]).unwrap();
         println!("Read: {:?}", values);
         std::thread::sleep(std::time::Duration::from_millis(1000));

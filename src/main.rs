@@ -3,8 +3,6 @@ mod config;
 mod pad;
 mod server;
 use eyre::{WrapErr, Result};
-use postcard::{from_bytes, to_slice};
-use serde::{Deserialize, Serialize};
 use tokio::net::UnixListener;
 use tracing::{error, info, debug};
 
