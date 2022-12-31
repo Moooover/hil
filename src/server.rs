@@ -26,14 +26,10 @@ impl HardwareResponse {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ServerChannels {
-    pub send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
-}
 pub async fn handle_stream(
     config: &Config,
     accept_result: (UnixStream, SocketAddr),
-    mut channels: ServerChannels,
+    mut send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
 ) -> Result<()> {
     let (mut stream, _addr) = accept_result;
     info!("New connection: {:?}", stream);
@@ -59,7 +55,7 @@ pub async fn handle_stream(
             debug!("Message: {:?}", hw_req);
 
             if let HardwareResponse::EncoderValue(v) =
-                handle_request(config, hw_req, &mut channels).await
+                handle_request(config, hw_req, &mut send_to_pad).await
             {
                 let encoded_resp = serde_json::to_string(&v)?;
                 debug!("Encoded response: {:?}", encoded_resp);
@@ -77,14 +73,14 @@ pub async fn handle_stream(
 async fn handle_request(
     config: &Config,
     req: HardwareRequest,
-    channels: &mut ServerChannels,
+    send_to_pad: &mut tokio::sync::mpsc::Sender<PadRequest>,
 ) -> HardwareResponse {
     match config.resolve(&req) {
         Some(Handler::Pad(port)) => {
             let wait_for_response = matches!(req, HardwareRequest::EncoderRead { .. });
             debug!("Sending request to pad");
             let (recv_from_pad, pad_req) = PadRequest::from_hardware_request(port, req);
-            channels.send_to_pad.send(pad_req).await.unwrap();
+            send_to_pad.send(pad_req).await.unwrap();
             if wait_for_response {
                 let pad_resp = recv_from_pad.await.unwrap();
                 debug!("Received pad response: {:?}", pad_resp);

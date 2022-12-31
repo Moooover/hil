@@ -24,10 +24,6 @@ async fn main() -> Result<()> {
     }
     let listener = UnixListener::bind("/tmp/hardware.sock").unwrap();
     let (send_to_pad, mut recv_from_server) = tokio::sync::mpsc::channel::<pad::PadRequest>(100);
-    let (send_to_server, recv_from_pad) = tokio::sync::mpsc::channel::<pad::PadResponse>(100);
-    let mut server_channels = server::ServerChannels {
-        send_to_pad,
-    };
     // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
     let server_handle = tokio::spawn(async move {
         loop {
@@ -36,7 +32,7 @@ async fn main() -> Result<()> {
                     error!("Error accepting connection: {}", e);
                 }
                 Ok(accept_result) => {
-                    let channels = server_channels.clone();
+                    let channels = send_to_pad.clone();
                     let config = config.clone();
             tokio::spawn(async move {
                 server::handle_stream(&config, accept_result, channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
