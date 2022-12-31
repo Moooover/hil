@@ -3,6 +3,7 @@ use crate::pad::{PadRequest, PadResponse};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::io;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{unix::SocketAddr, UnixStream};
 use tracing::{debug, error, info, warn};
 
@@ -39,54 +40,40 @@ pub async fn handle_stream(
         error!("Error accepting connection: {}", e);
         return Ok(());
     }
-    let (stream, _addr) = accept_result?;
+    let (mut stream, _addr) = accept_result?;
     info!("New connection: {:?}", stream);
-    while stream.readable().await.is_ok() {
-        let mut msg = vec![0; 1024];
-        match stream.try_read(&mut msg) {
-            Ok(0) => {
-                info!("Connection closed");
-                break;
+    let mut msg = vec![0; 1024];
+    loop {
+        let n = stream.read(&mut msg).await?;
+        if n == 0 {
+            info!("Connection closed");
+            break;
+        }
+        debug!("Read {} bytes", n);
+        // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
+        // let encoded_msg = serde_json::to_string(&sample_msg).unwrap();
+        // debug!("Encoded message: {:?}", encoded_msg);
+        let hw_req_stream =
+            serde_json::Deserializer::from_slice(&msg).into_iter::<HardwareRequest>();
+        for hw_req_unchecked in hw_req_stream {
+            if hw_req_unchecked.is_err() {
+                warn!("Error decoding message");
+                continue;
             }
-            Ok(n) => {
-                debug!("Read {} bytes", n);
-                // let sample_msg = HardwareRequest::MotorWrite{motor: "motor1".to_string(), command: vec![0x2A, 0x08, 0xFF, 0xFF, 0x23]};
-                // let encoded_msg = serde_json::to_string(&sample_msg).unwrap();
-                // debug!("Encoded message: {:?}", encoded_msg);
-                let hw_req_stream = serde_json::Deserializer::from_slice(&msg).into_iter::<HardwareRequest>();
-                for hw_req_unchecked in hw_req_stream {
-                    if hw_req_unchecked.is_err() {
-                        warn!("Error decoding message");
-                        continue;
-                    }
-                    let hw_req = hw_req_unchecked.unwrap();
-                debug!("Message: {:?}", hw_req);
+            let hw_req = hw_req_unchecked.unwrap();
+            debug!("Message: {:?}", hw_req);
 
-                if let HardwareResponse::EncoderValue(v) =
-                    handle_request(config, hw_req, channels).await
-                {
-                    let encoded_resp = serde_json::to_string(&v)?;
-                    debug!("Encoded response: {:?}", encoded_resp);
-                    let resp = encoded_resp.as_bytes();
-                    stream.writable().await?;
+            if let HardwareResponse::EncoderValue(v) =
+                handle_request(config, hw_req, channels).await
+            {
+                let encoded_resp = serde_json::to_string(&v)?;
+                debug!("Encoded response: {:?}", encoded_resp);
+                let resp = encoded_resp.as_bytes();
+                stream.writable().await?;
 
-                    match stream.try_write(resp) {
-                        Ok(n) => {
-                            debug!("Wrote {} bytes", n);
-                        }
-                        Err(e) => {
-                            error!("Error writing to stream: {}", e);
-                        }
-                    }
+                if let Err(e) = stream.write_all(resp).await {
+                    error!("Error writing to stream: {}", e);
                 }
-            }
-            }
-            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                info!("Would block");
-            }
-            Err(e) => {
-                error!("Error: {:?}", e);
-                return Err(e.into());
             }
         }
     }
