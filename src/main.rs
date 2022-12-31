@@ -26,10 +26,9 @@ async fn main() -> Result<()> {
     let (send_to_server, recv_from_pad) = tokio::sync::mpsc::channel::<pad::PadResponse>(100);
     let mut server_channels = server::ServerChannels {
         send_to_pad,
-        recv_from_pad,
     };
     // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
-    tokio::spawn(async move {
+    let server_handle = tokio::spawn(async move {
         loop {
             server::handle_stream(&config, listener.accept().await, &mut server_channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
         }
@@ -46,11 +45,16 @@ async fn main() -> Result<()> {
             }
             pad_req = recv_from_server.recv() => {
                 debug!("Got request from server: {:?}", pad_req);
-                let response = pad.respond(pad_req.unwrap()).await.wrap_err("Error responding to pad request").unwrap();
+                let (send_to_server, response) = pad.respond(pad_req.unwrap()).await.wrap_err("Error responding to pad request").unwrap();
                 if matches!(response, pad::PadResponse::EncoderValue(_)) {
-                    send_to_server.send(response).await.map_err(|e| error!("Error sending response to server: {}", e)).ok();
+                    if let Err(_) = send_to_server.send(response) {
+                        error!("Could not send back encoder values, receiver dropped.");
+                        break;
+                    }
                 }
             }
         }
     }
+    server_handle.await.unwrap();
+    Ok(())
 }

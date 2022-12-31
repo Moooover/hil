@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use eyre::Result;
 use tokio_serial::{SerialStream, SerialPortType};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::oneshot;
 use tracing::{debug, span, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
@@ -19,13 +20,15 @@ enum Operation {
 pub struct PadRequest {
     pub id: u8,
     pub body: HardwareRequest,
+    tx: tokio::sync::oneshot::Sender<PadResponse>,
 }
 impl PadRequest {
-    pub fn from_hardware_request(id: u8, hwrq: HardwareRequest) -> Self {
-        Self { id, body: hwrq }
+    pub fn from_hardware_request(id: u8, hwrq: HardwareRequest) -> (tokio::sync::oneshot::Receiver<PadResponse>, Self) {
+        let (pad_tx, server_rx) = tokio::sync::oneshot::channel();
+        (server_rx, Self { id, body: hwrq, tx: pad_tx })
     }
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PadResponse {
     EncoderValue(i32),
     Ok,
@@ -77,7 +80,7 @@ impl PadState {
         debug!("Written bytes: {:?}", coded);
         Ok(())
     }
-    pub async fn respond(&mut self, pad_rq: PadRequest) -> Result<PadResponse> {
+    pub async fn respond(&mut self, pad_rq: PadRequest) -> Result<(oneshot::Sender<PadResponse>, PadResponse)> {
         let _span_ = span!(Level::TRACE, "PadState::respond", pad_rq = ?pad_rq).entered();
         match pad_rq.body {
             HardwareRequest::MotorWrite { motor: _, command } => {
@@ -86,7 +89,7 @@ impl PadState {
                 let coded = to_slice(&op, &mut buf)?;
                 self.serial.as_mut().unwrap().write_all(coded).await?;
                 debug!("Written bytes: {:?}", coded);
-                Ok(PadResponse::Ok)
+                Ok((pad_rq.tx, PadResponse::Ok))
             }
             HardwareRequest::EncoderRead { encoder: _ } => {
                 let op = Operation::EncoderRead;
@@ -96,7 +99,7 @@ impl PadState {
                 debug!("Written bytes: {:?}", coded);
                 let read = self.serial.as_mut().unwrap().read(&mut buf).await?;
                 let encoder_values: [i32; 5] = from_bytes(&buf[..read])?;
-                Ok(PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]))
+                Ok((pad_rq.tx, PadResponse::EncoderValue(encoder_values[pad_rq.id as usize])))
             }
         }
     }
