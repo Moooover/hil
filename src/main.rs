@@ -24,7 +24,6 @@ async fn main() -> Result<()> {
     }
     let listener = UnixListener::bind("/tmp/hardware.sock").unwrap();
     let (send_to_pad, mut recv_from_server) = tokio::sync::mpsc::channel::<pad::PadRequest>(100);
-    // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
     let server_handle = tokio::spawn(async move {
         loop {
             match listener.accept().await {

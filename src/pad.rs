@@ -81,11 +81,6 @@ impl PadState {
             )
             .unwrap(),
         );
-        // self.serial
-        //     .as_mut()
-        //     .unwrap()
-        //     .set_timeout(std::time::Duration::from_millis(1000))
-        //     .unwrap();
     }
     pub async fn keep_alive(&mut self) -> Result<()> {
         let _span_ = span!(Level::TRACE, "PadState::keep_alive").entered();
