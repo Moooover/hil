@@ -2,7 +2,6 @@ use crate::config::{Config, Handler};
 use crate::pad::{PadRequest, PadResponse};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
-use std::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{unix::SocketAddr, UnixStream};
 use tracing::{debug, error, info, warn};
