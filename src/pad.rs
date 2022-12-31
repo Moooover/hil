@@ -1,10 +1,10 @@
 use crate::server::HardwareRequest;
+use eyre::Result;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
-use eyre::Result;
-use tokio_serial::{SerialStream, SerialPortType};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
+use tokio_serial::{SerialPortType, SerialStream};
 use tracing::{debug, span, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
@@ -23,9 +23,19 @@ pub struct PadRequest {
     tx: tokio::sync::oneshot::Sender<PadResponse>,
 }
 impl PadRequest {
-    pub fn from_hardware_request(id: u8, hwrq: HardwareRequest) -> (tokio::sync::oneshot::Receiver<PadResponse>, Self) {
+    pub fn from_hardware_request(
+        id: u8,
+        hwrq: HardwareRequest,
+    ) -> (tokio::sync::oneshot::Receiver<PadResponse>, Self) {
         let (pad_tx, server_rx) = tokio::sync::oneshot::channel();
-        (server_rx, Self { id, body: hwrq, tx: pad_tx })
+        (
+            server_rx,
+            Self {
+                id,
+                body: hwrq,
+                tx: pad_tx,
+            },
+        )
     }
 }
 #[derive(Debug, Clone)]
@@ -64,7 +74,13 @@ impl PadState {
         }
     }
     fn setup_serial(&mut self, port: &serialport::SerialPortInfo) {
-        self.serial = Some(SerialStream::open(&serialport::new(&port.port_name, 9600).timeout(std::time::Duration::from_millis(1000))).unwrap());
+        self.serial = Some(
+            SerialStream::open(
+                &serialport::new(&port.port_name, 9600)
+                    .timeout(std::time::Duration::from_millis(1000)),
+            )
+            .unwrap(),
+        );
         // self.serial
         //     .as_mut()
         //     .unwrap()
@@ -80,7 +96,10 @@ impl PadState {
         debug!("Written bytes: {:?}", coded);
         Ok(())
     }
-    pub async fn respond(&mut self, pad_rq: PadRequest) -> Result<(oneshot::Sender<PadResponse>, PadResponse)> {
+    pub async fn respond(
+        &mut self,
+        pad_rq: PadRequest,
+    ) -> Result<(oneshot::Sender<PadResponse>, PadResponse)> {
         let _span_ = span!(Level::TRACE, "PadState::respond", pad_rq = ?pad_rq).entered();
         match pad_rq.body {
             HardwareRequest::MotorWrite { motor: _, command } => {
@@ -99,7 +118,10 @@ impl PadState {
                 debug!("Written bytes: {:?}", coded);
                 let read = self.serial.as_mut().unwrap().read(&mut buf).await?;
                 let encoder_values: [i32; 5] = from_bytes(&buf[..read])?;
-                Ok((pad_rq.tx, PadResponse::EncoderValue(encoder_values[pad_rq.id as usize])))
+                Ok((
+                    pad_rq.tx,
+                    PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]),
+                ))
             }
         }
     }

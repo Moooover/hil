@@ -2,10 +2,10 @@
 mod config;
 mod pad;
 mod server;
-use eyre::{WrapErr, Result};
-use tokio::net::UnixListener;
+use eyre::{Result, WrapErr};
 use std::sync::Arc;
-use tracing::{error, info, debug};
+use tokio::net::UnixListener;
+use tracing::{debug, error, info};
 
 use git_version::git_version;
 const GIT_VERSION: &str = git_version!();
@@ -27,17 +27,19 @@ async fn main() -> Result<()> {
     // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
     let server_handle = tokio::spawn(async move {
         loop {
-            match listener.accept().await{
+            match listener.accept().await {
                 Err(e) => {
                     error!("Error accepting connection: {}", e);
                 }
                 Ok(accept_result) => {
                     let channels = send_to_pad.clone();
                     let config = config.clone();
-            tokio::spawn(async move {
-                server::handle_stream(&config, accept_result, channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
-            });
-
+                    tokio::spawn(async move {
+                        server::handle_stream(&config, accept_result, channels)
+                            .await
+                            .map_err(|e| error!("Error handling stream: {}", e))
+                            .ok();
+                    });
                 }
             };
         }
