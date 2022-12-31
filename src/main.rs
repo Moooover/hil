@@ -4,6 +4,7 @@ mod pad;
 mod server;
 use eyre::{WrapErr, Result};
 use tokio::net::UnixListener;
+use std::sync::Arc;
 use tracing::{error, info, debug};
 
 use git_version::git_version;
@@ -16,7 +17,7 @@ async fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     info!("Starting spine version {}", GIT_VERSION);
-    let config = config::load_config();
+    let config = Arc::new(config::load_config());
     // Check if file /tmp/hardware.sock exists, if so, delete it
     if std::path::Path::new("/tmp/hardware.sock").exists() {
         std::fs::remove_file("/tmp/hardware.sock")?
@@ -30,7 +31,19 @@ async fn main() -> Result<()> {
     // let (send_to_server, recv_from_pad) = tokio::sync::oneshot::channel();
     let server_handle = tokio::spawn(async move {
         loop {
-            server::handle_stream(&config, listener.accept().await, &mut server_channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
+            match listener.accept().await{
+                Err(e) => {
+                    error!("Error accepting connection: {}", e);
+                }
+                Ok(accept_result) => {
+                    let channels = server_channels.clone();
+                    let config = config.clone();
+            tokio::spawn(async move {
+                server::handle_stream(&config, accept_result, channels).await.map_err(|e| error!("Error handling stream: {}", e)).ok();
+            });
+
+                }
+            };
         }
     });
 
