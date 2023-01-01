@@ -1,5 +1,5 @@
 [Unit]
-Description=Team Rudra's hardware interaction layer
+Description=Team Rudra hardware interaction layer
 
 [Service]
 Type=simple
