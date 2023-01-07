@@ -13,7 +13,9 @@ pub struct PadConfig {
 }
 #[derive(Deserialize, Debug)]
 pub struct SystemConfig {
-    motors: HashMap<String, u8>,
+    pub motors: HashMap<String, u64>,
+    pub limit_switches: HashMap<String, u64>,
+    pub status_leds: HashMap<String, u64>,
 }
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -22,7 +24,7 @@ pub struct Config {
 }
 pub enum Handler {
     Pad(u8),
-    System(u8),
+    System(u64),
 }
 
 impl Config {

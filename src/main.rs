@@ -2,6 +2,7 @@
 mod config;
 mod pad;
 mod server;
+mod local;
 use eyre::{Result, WrapErr};
 use std::sync::Arc;
 use tokio::net::UnixListener;

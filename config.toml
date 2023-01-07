@@ -1,18 +1,25 @@
 [pad]
 [pad.motors]
-drive_front = 2
-drive_rear = 2
+drive_front = 0
+drive_rear = 0
 
-suspension_front = 3
-suspension_rear = 4
+suspension_front = 1
+suspension_rear = 2
 
 [pad.encoders]
 drive_front_left = 0
 drive_front_right = 1
 drive_rear_left = 2
+drive_rear_right = 5
 arm_base = 3
 arm_upper = 4
 
 [system]
 [system.motors]
 test_one = 1
+[system.limit_switches]
+test_one = 1
+[system.status_leds]
+red = 0
+green = 1
+blue = 2
