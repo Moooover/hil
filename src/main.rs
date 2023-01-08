@@ -14,7 +14,7 @@ const GIT_VERSION: &str = git_version!();
 #[tokio::main]
 async fn main() -> Result<()> {
     let subscriber = tracing_subscriber::fmt::Subscriber::builder()
-        .with_max_level(tracing::Level::TRACE)
+        .with_max_level(tracing::Level::DEBUG)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     info!("Starting spine version {}", GIT_VERSION);
