@@ -52,7 +52,10 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                pad.keep_alive().await.map_err(|e| error!("Error sending KeepAlive: {}", e)).ok();
+                if pad.keep_alive().await.map_err(|e| error!("Error sending KeepAlive: {}", e)).is_err() {
+                    info!("Lost connection to PAD, trying to reconnect...");
+                    pad.connect_device();
+                }
             }
             pad_req = recv_from_server.recv() => {
                 debug!("Got request from server: {:?}", pad_req);
