@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
 use tokio_serial::{SerialPortType, SerialStream};
-use tracing::{info, debug, span, Level};
+use tracing::{info, trace, debug, span, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
@@ -88,8 +88,8 @@ impl PadState {
         let op = Operation::KeepAlive;
         let coded = to_slice(&op, &mut buf)?;
         self.serial.as_mut().unwrap().write_all(coded).await?;
-        info!("Sent keep alive");
-        debug!("Written bytes: {:?}", coded);
+        trace!("Sent keep alive");
+        trace!("Written bytes: {:?}", coded);
         Ok(())
     }
     pub async fn respond(

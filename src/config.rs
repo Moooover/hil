@@ -49,7 +49,6 @@ impl Config {
         }
     }
 }
-#[tracing::instrument]
 pub fn load_config() -> Config {
     let config_file_path = xdg::BaseDirectories::with_prefix("spine")
         .unwrap()
