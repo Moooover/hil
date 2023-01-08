@@ -6,7 +6,7 @@ mod local;
 use eyre::{Result, WrapErr};
 use std::sync::Arc;
 use tokio::net::UnixListener;
-use tracing::{debug, error, info};
+use tracing::{debug, warn, error, info};
 
 use git_version::git_version;
 const GIT_VERSION: &str = git_version!();
@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
         tokio::select! {
             _ = interval.tick() => {
                 if pad.keep_alive().await.map_err(|e| error!("Error sending KeepAlive: {}", e)).is_err() {
-                    info!("Lost connection to PAD, trying to reconnect...");
+                    warn!("Lost connection to PAD, trying to reconnect...");
                     pad.connect_device();
                 }
             }

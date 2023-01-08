@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
-use tracing::debug;
+use tracing::info;
 
 #[derive(Default, Deserialize, Debug)]
 pub struct PadConfig {
@@ -61,6 +61,6 @@ pub fn load_config() -> Config {
     buf_reader.read_to_string(&mut contents).unwrap();
 
     let config: Config = toml::from_str(&contents).unwrap();
-    debug!("{:#?}", config);
+    info!("{:#?}", config);
     config
 }

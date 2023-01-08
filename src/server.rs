@@ -51,12 +51,14 @@ pub async fn handle_stream(
                 continue;
             }
             let hw_req = hw_req_unchecked.unwrap();
+            info!("Successfully received HardwareRequest message");
             debug!("Message: {:?}", hw_req);
 
             if let HardwareResponse::EncoderValue(v) =
                 handle_request(config, hw_req, &mut send_to_pad).await
             {
                 let encoded_resp = serde_json::to_string(&v)?;
+                info!("Received encoder value, writing back to client");
                 debug!("Encoded response: {:?}", encoded_resp);
                 let resp = encoded_resp.as_bytes();
                 stream.writable().await?;
@@ -82,6 +84,7 @@ async fn handle_request(
             send_to_pad.send(pad_req).await.unwrap();
             if wait_for_response {
                 let pad_resp = recv_from_pad.await.unwrap();
+                info!("Heard back from PAD, writing back HardwareResponse");
                 debug!("Received pad response: {:?}", pad_resp);
                 HardwareResponse::from_pad_response(pad_resp)
             } else {
