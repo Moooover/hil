@@ -28,3 +28,7 @@ path = "src/test_encoder.rs"
 [[bin]]
 name = "test_gpio"
 path = "src/test_gpio.rs"
+
+[[bin]]
+name = "test_servo"
+path = "src/test_servo.rs"
