@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::oneshot;
 use tokio_serial::{SerialPortType, SerialStream};
-use tracing::{info, trace, debug, span, Level};
+use tracing::{info, trace, debug, span, warn, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
@@ -98,6 +98,14 @@ impl PadState {
     ) -> Result<(oneshot::Sender<PadResponse>, PadResponse)> {
         let _span_ = span!(Level::TRACE, "PadState::respond", pad_rq = ?pad_rq).entered();
         match pad_rq.body {
+            HardwareRequest::ServoWrite { servo: _, position: value } => {
+                let op = Operation::PwmWrite(pad_rq.id, value);
+                let mut buf = [0u8; 64];
+                let coded = to_slice(&op, &mut buf)?;
+                self.serial.as_mut().unwrap().write_all(coded).await?;
+                debug!("Written servo: {:?}", coded);
+                Ok((pad_rq.tx, PadResponse::Ok))
+            }
             HardwareRequest::MotorWrite { motor: _, command } => {
                 let op = match command.len() {
                     1 => Operation::SabertoothWrite(pad_rq.id, command[0]),
@@ -123,6 +131,7 @@ impl PadState {
                     PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]),
                 ))
             }
+            _ => {warn!("PadState::respond: Unimplemented request: {:?}", pad_rq.body); Ok((pad_rq.tx, PadResponse::Ok))}
         }
     }
 }

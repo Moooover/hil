@@ -14,6 +14,11 @@ drive_rear_right = 5
 arm_base = 3
 arm_upper = 4
 
+[pad.servos]
+analog_camera1_pan = 0
+analog_camera1_tilt = 1
+
+
 [system]
 [system.motors]
 test_one = 1

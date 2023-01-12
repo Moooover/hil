@@ -10,6 +10,7 @@ use tracing::info;
 pub struct PadConfig {
     motors: HashMap<String, u8>,
     encoders: HashMap<String, u8>,
+    servos: HashMap<String, u8>,
 }
 #[derive(Deserialize, Debug)]
 pub struct SystemConfig {
@@ -30,6 +31,7 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
+            HardwareRequest::ServoWrite { servo, position: _ } => self.pad.servos.get(servo).map(|port| Handler::Pad(*port)),
             HardwareRequest::MotorWrite { motor, command: _ } => self
                 .pad
                 .motors
@@ -46,6 +48,7 @@ impl Config {
                 .encoders
                 .get(encoder)
                 .map(|port| Handler::Pad(*port)),
+            _ => None
         }
     }
 }
