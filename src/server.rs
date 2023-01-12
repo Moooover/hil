@@ -11,6 +11,8 @@ pub enum HardwareRequest {
     MotorWrite { motor: String, command: Vec<u8> },
     ServoWrite { servo: String, position: u16 },
     EncoderRead { encoder: String },
+    SwitchRead { switch: String },
+    LedWrite { led: String, state: u8 },
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
