@@ -46,10 +46,12 @@ pub enum PadResponse {
 
 pub struct PadState {
     serial: Option<SerialStream>,
+    pwm_freq: u32,
+    pwm_adc_max_value: u16,
 }
 impl PadState {
     pub fn new() -> Self {
-        Self { serial: None }
+        Self { serial: None, pwm_freq: 60, pwm_adc_max_value: 4095 }
     }
     pub fn connect_device(&mut self) {
         const VID: u16 = 0x2E8A;
@@ -92,6 +94,13 @@ impl PadState {
         trace!("Written bytes: {:?}", coded);
         Ok(())
     }
+    fn microseconds_to_analog_value(&self, microseconds: u16) -> u16 {
+        let microseconds = microseconds as f32;
+        let microseconds = microseconds / 1000_000.0;
+        let microseconds = microseconds * self.pwm_freq as f32;
+        let microseconds = microseconds * self.pwm_adc_max_value as f32;
+        microseconds as u16
+    }
     pub async fn respond(
         &mut self,
         pad_rq: PadRequest,
@@ -99,7 +108,7 @@ impl PadState {
         let _span_ = span!(Level::TRACE, "PadState::respond", pad_rq = ?pad_rq).entered();
         match pad_rq.body {
             HardwareRequest::ServoWrite { servo: _, position: value } => {
-                let op = Operation::PwmWrite(pad_rq.id, value);
+                let op = Operation::PwmWrite(pad_rq.id, self.microseconds_to_analog_value(value));
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
                 self.serial.as_mut().unwrap().write_all(coded).await?;
