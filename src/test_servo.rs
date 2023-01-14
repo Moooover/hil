@@ -14,11 +14,15 @@ fn main() {
     port.set_timeout(std::time::Duration::from_millis(1000)).unwrap();
     let mut buf = [0u8; 1024];
 
-    loop {
-        let op = Operation::PwmWrite(0, 200u16);
-        let coded = to_slice(&op, &mut buf).unwrap();
-        let _ = port.write(coded).unwrap();
-        println!("Written bytes: {:?}", coded);
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
+    let args: Vec<String> = std::env::args().collect();
+    let op = Operation::PwmWrite(0, args[1].parse().unwrap());
+    let coded = to_slice(&op, &mut buf).unwrap();
+    let _ = port.write(coded).unwrap();
+    println!("Written bytes: {:?}", coded);
+    let op = Operation::PwmWrite(1, args[2].parse().unwrap());
+    let coded = to_slice(&op, &mut buf).unwrap();
+    let _ = port.write(coded).unwrap();
+    println!("Written bytes: {:?}", coded);
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    
 }
