@@ -3,9 +3,10 @@ use eyre::Result;
 use postcard::{from_bytes, to_slice};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use eyre::eyre;
 use tokio::sync::oneshot;
 use tokio_serial::{SerialPortType, SerialStream};
-use tracing::{info, trace, debug, span, warn, Level};
+use tracing::{info, trace, debug, span, error, warn, Level};
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
 enum Operation {
@@ -57,19 +58,19 @@ impl PadState {
         const VID: u16 = 0x2E8A;
         const PID: u16 = 0x000A;
         if let Err(e) = serialport::available_ports() {
-            println!("Error listing serial ports: {}", e);
+            error!("Error listing serial ports: {}", e);
             return;
         }
         let ports = serialport::available_ports().unwrap();
         if ports.is_empty() {
-            println!("No serial ports found!");
+            error!("No serial ports found!");
             return;
         }
         for port in ports {
-            println!("Found port: {:?}", port);
+            debug!("Found port: {:?}", port);
             if let SerialPortType::UsbPort(info) = &port.port_type {
                 if info.vid == VID && info.pid == PID {
-                    println!("Found pad device!");
+                    info!("Found pad device!");
                     self.setup_serial(&port);
                 }
             }
@@ -89,7 +90,7 @@ impl PadState {
         let mut buf = [0u8; 64];
         let op = Operation::KeepAlive;
         let coded = to_slice(&op, &mut buf)?;
-        self.serial.as_mut().unwrap().write_all(coded).await?;
+        self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
         trace!("Sent keep alive");
         trace!("Written bytes: {:?}", coded);
         Ok(())
@@ -111,7 +112,7 @@ impl PadState {
                 let op = Operation::PwmWrite(pad_rq.id, self.microseconds_to_analog_value(value));
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
-                self.serial.as_mut().unwrap().write_all(coded).await?;
+                self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
                 debug!("Written servo: {:?}", coded);
                 Ok((pad_rq.tx, PadResponse::Ok))
             }
@@ -123,7 +124,7 @@ impl PadState {
                 };
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
-                self.serial.as_mut().unwrap().write_all(coded).await?;
+                self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
                 debug!("Written bytes: {:?}", coded);
                 Ok((pad_rq.tx, PadResponse::Ok))
             }
@@ -131,8 +132,8 @@ impl PadState {
                 let op = Operation::EncoderRead;
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
-                self.serial.as_mut().unwrap().write_all(coded).await?;
-                let read = self.serial.as_mut().unwrap().read(&mut buf).await?;
+                self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
+                let read = self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.read(&mut buf).await?;
                 let encoder_values: [i32; 5] = from_bytes(&buf[..read])?;
                 debug!("Encoder values: {:?}", encoder_values);
                 Ok((
