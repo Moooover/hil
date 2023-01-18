@@ -15,6 +15,8 @@ enum Operation {
     SmartelexWrite(u8, [u8; 5]),
     EncoderRead,
     PwmWrite(u8, u16),
+    VersionReport,
+    Reset,
 }
 
 #[derive(Debug)]
@@ -54,7 +56,7 @@ impl PadState {
     pub fn new() -> Self {
         Self { serial: None, pwm_freq: 60, pwm_adc_max_value: 4095 }
     }
-    pub fn connect_device(&mut self) {
+    pub async fn connect_device(&mut self) {
         const VID: u16 = 0x2E8A;
         const PID: u16 = 0x000A;
         if let Err(e) = serialport::available_ports() {
@@ -71,19 +73,26 @@ impl PadState {
             if let SerialPortType::UsbPort(info) = &port.port_type {
                 if info.vid == VID && info.pid == PID {
                     info!("Found pad device!");
-                    self.setup_serial(&port);
+                    self.setup_serial(&port).await.map_err(|e| error!("Error setting up serial port: {}", e)).ok();
                 }
             }
         }
     }
-    fn setup_serial(&mut self, port: &serialport::SerialPortInfo) {
+    async fn setup_serial(&mut self, port: &serialport::SerialPortInfo) -> Result<()> {
         self.serial = Some(
             SerialStream::open(
                 &serialport::new(&port.port_name, 9600)
                     .timeout(std::time::Duration::from_millis(1000)),
-            )
-            .unwrap(),
+            )?
         );
+        let mut buf = [0u8; 64];
+        let op = Operation::VersionReport;
+        let coded = to_slice(&op, &mut buf)?;
+        self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
+        let read = self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.read(&mut buf).await?;
+        let pad_version = from_bytes::<String>(&buf[..read])?;
+        info!("PAD reported version: {}", pad_version);
+        Ok(())
     }
     pub async fn keep_alive(&mut self) -> Result<()> {
         let _span_ = span!(Level::TRACE, "PadState::keep_alive").entered();

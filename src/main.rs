@@ -47,14 +47,14 @@ async fn main() -> Result<()> {
 
     let mut interval = tokio::time::interval(std::time::Duration::from_millis(800));
     let mut pad = pad::PadState::new();
-    pad.connect_device();
+    pad.connect_device().await;
 
     loop {
         tokio::select! {
             _ = interval.tick() => {
                 if pad.keep_alive().await.map_err(|e| error!("Error sending KeepAlive: {}", e)).is_err() {
                     warn!("Lost connection to PAD, trying to reconnect...");
-                    pad.connect_device();
+                    pad.connect_device().await;
                 }
             }
             pad_req = recv_from_server.recv() => {
