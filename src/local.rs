@@ -1,32 +1,34 @@
 use sysfs_gpio::{Direction, Pin};
 use eyre::{Result, Error};
 use tokio::time::{sleep, Duration};
-use crate::config::SystemConfig;
+use crate::config::Config;
 use crate::server::HardwareRequest;
 
+type HBridgePinPair = [Pin; 2];
 #[derive(Debug)]
-struct LocalConnections {
-    limit_switches: [Pin; 5],
-    h_bridge: [Pin; 4],
-    status_leds: [Pin; 3]
+pub struct LocalConnections {
+    limit_switches: Vec<Pin>,
+    h_bridge: Vec<HBridgePinPair>,
+    status_leds: Vec<Pin>,
 }
 
 #[derive(Debug)]
-struct LocalRequest {
+pub struct LocalRequest {
     pub id: u8,
     pub body: HardwareRequest
 }
 
 #[derive(Debug)]
-enum LocalResponse {
+pub enum LocalResponse {
     SwitchOn(bool),
     Ok,
 }
 
 impl LocalConnections {
-    pub async fn from_config(config: &SystemConfig) -> Self {
-        let limit_switches: [Pin; 5] = config.limit_switches.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
-        let h_bridge = config.motors.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
+    pub async fn from_config(config: &Config) -> Self {
+        let config = &config.system;
+        let limit_switches: Vec<Pin> = config.limit_switches.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
+        let h_bridge:Vec<HBridgePinPair> = config.motors.iter().map(|(_, pin)| [Pin::new(pin[0]), Pin::new(pin[1])]).collect::<Vec<_>>().try_into().unwrap();
         let status_leds = config.status_leds.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
         // udev takes ~80ms to export the pins
         sleep(Duration::from_millis(100)).await;
@@ -42,7 +44,8 @@ impl LocalConnections {
             input_pin.set_direction(Direction::In)?;
         }
         for output_pin in self.h_bridge.iter_mut() {
-            output_pin.set_direction(Direction::Out)?;
+            output_pin[0].set_direction(Direction::Out)?;
+            output_pin[1].set_direction(Direction::Out)?;
         }
         for output_pin in self.status_leds.iter_mut() {
             output_pin.set_direction(Direction::Out)?;
@@ -65,7 +68,7 @@ impl LocalConnections {
             HardwareRequest::MotorWrite { motor: _, command } => {
                 let pins = self.h_bridge.get(lrq.id as usize).ok_or(Error::msg("Invalid h-bridge id"))?;
                 let value = command[0];
-                pins.set_value(value)?;
+                // pins.set_value(value)?;
                 Ok(LocalResponse::Ok)
             },
             _ => Err(Error::msg("Could not handle request locally"))
@@ -74,7 +77,7 @@ impl LocalConnections {
 
     fn write_h_bridge(&mut self, command: &Vec<u8>) -> Result<()> {
         for (pin, value) in self.h_bridge.iter_mut().zip(command.iter()) {
-            pin.set_value(*value)?;
+            // pin.set_value(*value)?;
         }
         Ok(())
     }

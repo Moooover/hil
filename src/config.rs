@@ -14,18 +14,18 @@ pub struct PadConfig {
 }
 #[derive(Deserialize, Debug)]
 pub struct SystemConfig {
-    pub motors: HashMap<String, u64>,
+    pub motors: HashMap<String, [u64; 2]>,
     pub limit_switches: HashMap<String, u64>,
     pub status_leds: HashMap<String, u64>,
 }
 #[derive(Deserialize, Debug)]
 pub struct Config {
-    pad: PadConfig,
-    system: SystemConfig,
+    pub pad: PadConfig,
+    pub system: SystemConfig,
 }
 pub enum Handler {
     Pad(u8),
-    System(u64),
+    System(Vec<u64>),
 }
 
 impl Config {
@@ -41,7 +41,7 @@ impl Config {
                     self.system
                         .motors
                         .get(motor)
-                        .map(|port| Handler::System(*port))
+                        .map(|port| Handler::System((*port).to_vec()))
                 }),
             HardwareRequest::EncoderRead { encoder } => self
                 .pad

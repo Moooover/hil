@@ -21,7 +21,8 @@ analog_camera1_tilt = 1
 
 [system]
 [system.motors]
-test_one = 1
+test_one = [1, 2]
+test_two = [3, 4]
 [system.limit_switches]
 test_one = 1
 [system.status_leds]
