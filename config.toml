@@ -7,9 +7,9 @@ suspension_front = 1
 suspension_rear = 2
 
 [pad.encoders]
-drive_front_left = 0
+drive_front_left = 2
 drive_front_right = 1
-drive_rear_left = 2
+drive_rear_left = 0
 drive_rear_right = 5
 arm_base = 3
 arm_upper = 4
