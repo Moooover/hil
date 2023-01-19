@@ -151,6 +151,14 @@ impl PadState {
                     PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]),
                 ))
             }
+            HardwareRequest::PadReset => {
+                let op = Operation::Reset;
+                let mut buf = [0u8; 64];
+                let coded = to_slice(&op, &mut buf)?;
+                self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
+                debug!("Written bytes: {:?}", coded);
+                Ok((pad_rq.tx, PadResponse::Ok))
+            }
             _ => {warn!("PadState::respond: Unimplemented request: {:?}", pad_rq.body); Ok((pad_rq.tx, PadResponse::Ok))}
         }
     }

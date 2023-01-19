@@ -14,6 +14,7 @@ pub enum HardwareRequest {
     EncoderRead { encoder: String },
     SwitchRead { switch: String },
     LedWrite { led: String, state: u8 },
+    PadReset,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
@@ -86,7 +87,7 @@ pub async fn handle_stream(
                         error!("Error writing to stream: {}", e);
                     }
                 },
-                _ => {}
+                HardwareResponse::Ok => {}
             }
         }
     }
