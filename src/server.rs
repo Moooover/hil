@@ -1,5 +1,6 @@
 use crate::config::{Config, Handler};
 use crate::pad::{PadRequest, PadResponse};
+use crate::local::{LocalRequest, LocalResponse};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -17,6 +18,7 @@ pub enum HardwareRequest {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
     EncoderValue(i32),
+    SwitchOn(bool),
     Ok,
 }
 impl HardwareResponse {
@@ -26,12 +28,19 @@ impl HardwareResponse {
             PadResponse::Ok => Self::Ok,
         }
     }
+    pub fn from_local_response(lr: LocalResponse) -> Self {
+        match lr {
+            LocalResponse::SwitchOn(v) => Self::SwitchOn(v),
+            LocalResponse::Ok => Self::Ok,
+        }
+    }
 }
 
 pub async fn handle_stream(
     config: &Config,
     accept_result: (UnixStream, SocketAddr),
     mut send_to_pad: tokio::sync::mpsc::Sender<PadRequest>,
+    mut send_to_local: tokio::sync::mpsc::Sender<LocalRequest>,
 ) -> Result<()> {
     let (mut stream, _addr) = accept_result;
     info!("New connection: {:?}", stream);
@@ -54,18 +63,30 @@ pub async fn handle_stream(
             info!("Successfully received HardwareRequest message");
             debug!("Message: {:?}", hw_req);
 
-            if let HardwareResponse::EncoderValue(v) =
-                handle_request(config, hw_req, &mut send_to_pad).await
-            {
-                let encoded_resp = serde_json::to_string(&v)?;
-                info!("Received encoder value, writing back to client");
-                debug!("Encoded response: {:?}", encoded_resp);
-                let resp = encoded_resp.as_bytes();
-                stream.writable().await?;
+            match handle_request(config, hw_req, &mut send_to_pad, &mut send_to_local).await {
+                HardwareResponse::EncoderValue(v) => {
+                    let encoded_resp = serde_json::to_string(&v)?;
+                    info!("Received encoder value, writing back to client");
+                    debug!("Encoded response: {:?}", encoded_resp);
+                    let resp = encoded_resp.as_bytes();
+                    stream.writable().await?;
 
-                if let Err(e) = stream.write_all(resp).await {
-                    error!("Error writing to stream: {}", e);
-                }
+                    if let Err(e) = stream.write_all(resp).await {
+                        error!("Error writing to stream: {}", e);
+                    }
+                },
+                HardwareResponse::SwitchOn(v) => {
+                    let encoded_resp = serde_json::to_string(&v)?;
+                    info!("Received switch value, writing back to client");
+                    debug!("Encoded response: {:?}", encoded_resp);
+                    let resp = encoded_resp.as_bytes();
+                    stream.writable().await?;
+
+                    if let Err(e) = stream.write_all(resp).await {
+                        error!("Error writing to stream: {}", e);
+                    }
+                },
+                _ => {}
             }
         }
     }
