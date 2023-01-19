@@ -1,5 +1,6 @@
 use sysfs_gpio::{Direction, Pin};
 use eyre::{Result, Error};
+use tracing::{debug};
 use tokio::time::{sleep, Duration};
 use tokio::sync::oneshot;
 use std::collections::HashMap;
@@ -43,6 +44,10 @@ impl LocalConnections {
             .collect();
         let status_leds: HashMap<String, Pin> = config.status_leds.drain().map(|(name, pin)| (name, Pin::new(pin))).collect();
         // udev takes ~80ms to export the pins
+        
+        limit_switches.values().for_each(|pin| pin.export().unwrap());
+        h_bridge.values().for_each(|pins| pins.iter().for_each(|pin| pin.export().unwrap()));
+        status_leds.values().for_each(|pin| pin.export().unwrap());
         sleep(Duration::from_millis(100)).await;
         Self {
             limit_switches,
@@ -53,13 +58,16 @@ impl LocalConnections {
 
     pub fn setup_pins(&mut self) -> Result<()> {
         for input_pin in self.limit_switches.values_mut() {
+            debug!("Setting up pin {:?}", input_pin);
             input_pin.set_direction(Direction::In)?;
         }
         for output_pin in self.h_bridge.values_mut() {
+            debug!("Setting up motor pins {:?}", output_pin);
             output_pin[0].set_direction(Direction::Out)?;
             output_pin[1].set_direction(Direction::Out)?;
         }
         for output_pin in self.status_leds.values_mut() {
+            debug!("Setting up led pins {:?}", output_pin);
             output_pin.set_direction(Direction::Out)?;
         }
         Ok(())
