@@ -75,6 +75,7 @@ async fn handle_request(
     config: &Config,
     req: HardwareRequest,
     send_to_pad: &mut tokio::sync::mpsc::Sender<PadRequest>,
+    send_to_local: &mut tokio::sync::mpsc::Sender<LocalRequest>,
 ) -> HardwareResponse {
     match config.resolve(&req) {
         Some(Handler::Pad(port)) => {
@@ -91,9 +92,19 @@ async fn handle_request(
                 HardwareResponse::Ok
             }
         }
-        Some(Handler::System(port)) => {
-            warn!("System port: {}, not implemented", port);
-            HardwareResponse::Ok
+        Some(Handler::System) => {
+            let wait_for_response = matches!(req, HardwareRequest::SwitchRead { .. });
+            debug!("Sending request to local system");
+            let (recv_from_local, local_req) = LocalRequest::from_hardware_request(req);
+            send_to_local.send(local_req).await.unwrap();
+            if wait_for_response {
+                let local_resp = recv_from_local.await.unwrap();
+                info!("Heard back from local system, writing back HardwareResponse");
+                debug!("Received local response: {:?}", local_resp);
+                HardwareResponse::from_local_response(local_resp)
+            } else {
+                HardwareResponse::Ok
+            }
         }
         None => {
             warn!("No handler found");

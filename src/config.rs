@@ -12,7 +12,7 @@ pub struct PadConfig {
     encoders: HashMap<String, u8>,
     servos: HashMap<String, u8>,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct SystemConfig {
     pub motors: HashMap<String, [u64; 2]>,
     pub limit_switches: HashMap<String, u64>,
@@ -25,7 +25,7 @@ pub struct Config {
 }
 pub enum Handler {
     Pad(u8),
-    System(Vec<u64>),
+    System,
 }
 
 impl Config {
@@ -41,7 +41,7 @@ impl Config {
                     self.system
                         .motors
                         .get(motor)
-                        .map(|port| Handler::System((*port).to_vec()))
+                        .map(|_| Handler::System)
                 }),
             HardwareRequest::EncoderRead { encoder } => self
                 .pad
