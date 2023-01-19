@@ -25,6 +25,20 @@ async fn main() -> Result<()> {
     }
     let listener = UnixListener::bind("/tmp/hardware.sock").unwrap();
     let (send_to_pad, mut recv_from_server) = tokio::sync::mpsc::channel::<pad::PadRequest>(100);
+    let (send_to_local, mut recv_from_server_local) = tokio::sync::mpsc::channel::<local::LocalRequest>(100);
+
+    let mut local_connections = local::LocalConnections::from_config(&config).await;
+    let local_connections_handle = tokio::spawn(async move {
+        loop {
+            let request = recv_from_server_local.recv().await.unwrap();
+            let (send_to_server, response) = local_connections.respond(request).wrap_err("Error responging to a LocalRequest").unwrap();
+            if matches!(response, local::LocalResponse::SwitchOn(_)) &&
+                send_to_server.send(response).is_err() {
+                    error!("Could not send back Switch state, receiver dropped.");
+                    break;
+            }
+        }
+    });
     let server_handle = tokio::spawn(async move {
         loop {
             match listener.accept().await {
@@ -32,10 +46,11 @@ async fn main() -> Result<()> {
                     error!("Error accepting connection: {}", e);
                 }
                 Ok(accept_result) => {
-                    let channels = send_to_pad.clone();
+                    let pad_channel = send_to_pad.clone();
+                    let local_channel = send_to_local.clone();
                     let config = config.clone();
                     tokio::spawn(async move {
-                        server::handle_stream(&config, accept_result, channels)
+                        server::handle_stream(&config, accept_result, pad_channel, local_channel)
                             .await
                             .map_err(|e| error!("Error handling stream: {}", e))
                             .ok();
@@ -68,6 +83,7 @@ async fn main() -> Result<()> {
             }
         }
     }
+    local_connections_handle.await.unwrap();
     server_handle.await.unwrap();
     Ok(())
 }

@@ -1,6 +1,7 @@
 use sysfs_gpio::{Direction, Pin};
 use eyre::{Result, Error};
 use tokio::time::{sleep, Duration};
+use tokio::sync::oneshot;
 use std::collections::HashMap;
 use crate::config::Config;
 use crate::server::HardwareRequest;
@@ -15,8 +16,8 @@ pub struct LocalConnections {
 
 #[derive(Debug)]
 pub struct LocalRequest {
-    pub id: u8,
-    pub body: HardwareRequest
+    pub body: HardwareRequest,
+    tx: tokio::sync::oneshot::Sender<LocalResponse>,
 }
 
 #[derive(Debug)]
@@ -64,23 +65,23 @@ impl LocalConnections {
         Ok(())
     }
 
-    pub fn respond(&mut self, lrq: LocalRequest) -> Result<LocalResponse> {
+    pub fn respond(&mut self, lrq: LocalRequest) -> Result<(oneshot::Sender<LocalResponse>, LocalResponse)> {
         match lrq.body {
-            HardwareRequest::SwitchRead { switch: _ } => {
-                let pin = self.limit_switches.get(lrq.id as usize).ok_or(Error::msg("Invalid switch id"))?;
+            HardwareRequest::SwitchRead { switch } => {
+                let pin = self.limit_switches.get(&switch).ok_or(Error::msg("Invalid switch id"))?;
                 let value = pin.get_value()?;
-                Ok(LocalResponse::SwitchOn(value == 1))
+                Ok((lrq.tx, LocalResponse::SwitchOn(value == 1)))
             },
-            HardwareRequest::LedWrite { led: _, state } => {
-                let pin = self.status_leds.get(lrq.id as usize).ok_or(Error::msg("Invalid led id"))?;
+            HardwareRequest::LedWrite { led, state } => {
+                let pin = self.status_leds.get(&led).ok_or(Error::msg("Invalid led id"))?;
                 pin.set_value(state)?;
-                Ok(LocalResponse::Ok)
+                Ok((lrq.tx, LocalResponse::Ok))
             },
-            HardwareRequest::MotorWrite { motor: _, command } => {
-                let pins = self.h_bridge.get(lrq.id as usize).ok_or(Error::msg("Invalid h-bridge id"))?;
+            HardwareRequest::MotorWrite { motor, command } => {
+                let pins = self.h_bridge.get(&motor).ok_or(Error::msg("Invalid h-bridge id"))?;
                 let value = command[0];
                 // pins.set_value(value)?;
-                Ok(LocalResponse::Ok)
+                Ok((lrq.tx, LocalResponse::Ok))
             },
             _ => Err(Error::msg("Could not handle request locally"))
         }
@@ -91,5 +92,12 @@ impl LocalConnections {
             // pin.set_value(*value)?;
         }
         Ok(())
+    }
+}
+
+impl LocalRequest {
+    pub fn from_hardware_request(body: HardwareRequest) -> (tokio::sync::oneshot::Receiver<LocalResponse>, Self) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        (rx, Self { body, tx })
     }
 }
