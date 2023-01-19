@@ -78,18 +78,33 @@ impl LocalConnections {
                 Ok((lrq.tx, LocalResponse::Ok))
             },
             HardwareRequest::MotorWrite { motor, command } => {
-                let pins = self.h_bridge.get(&motor).ok_or(Error::msg("Invalid h-bridge id"))?;
+                let h_bridge = self.h_bridge.get(&motor).ok_or(Error::msg("Invalid h-bridge id"))?;
                 let value = command[0];
-                // pins.set_value(value)?;
+                self.write_h_bridge(*h_bridge, value)?;
                 Ok((lrq.tx, LocalResponse::Ok))
             },
             _ => Err(Error::msg("Could not handle request locally"))
         }
     }
 
-    fn write_h_bridge(&mut self, command: &Vec<u8>) -> Result<()> {
-        for (pin, value) in self.h_bridge.iter_mut().zip(command.iter()) {
-            // pin.set_value(*value)?;
+    fn write_h_bridge(&mut self, h_bridge: HBridgePinPair, command: u8) -> Result<()> {
+        match command {
+            65..=127 | 193..=u8::MAX => {
+                h_bridge[0].set_value(1)?;
+                h_bridge[1].set_value(0)?;
+            },
+            1..=63 | 128..=190 => {
+                h_bridge[0].set_value(0)?;
+                h_bridge[1].set_value(1)?;
+            },
+            // The reason why 191 is here, is due rounding down in affine_transform in wroom
+            // With that, someone may think, that 191 corresponds to a rest position, which may be true
+            // for Sabertooth, but for the H-Bridge, there's no speed control, only discrete
+            // on/off.
+            0 | 64 | 191 | 192 => {
+                h_bridge[0].set_value(0)?;
+                h_bridge[1].set_value(0)?;
+            },
         }
         Ok(())
     }
