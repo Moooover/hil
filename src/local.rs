@@ -1,15 +1,16 @@
 use sysfs_gpio::{Direction, Pin};
 use eyre::{Result, Error};
 use tokio::time::{sleep, Duration};
+use std::collections::HashMap;
 use crate::config::Config;
 use crate::server::HardwareRequest;
 
 type HBridgePinPair = [Pin; 2];
 #[derive(Debug)]
 pub struct LocalConnections {
-    limit_switches: Vec<Pin>,
-    h_bridge: Vec<HBridgePinPair>,
-    status_leds: Vec<Pin>,
+    limit_switches: HashMap<String, Pin>,
+    h_bridge: HashMap<String, HBridgePinPair>,
+    status_leds: HashMap<String, Pin>,
 }
 
 #[derive(Debug)]
@@ -26,10 +27,20 @@ pub enum LocalResponse {
 
 impl LocalConnections {
     pub async fn from_config(config: &Config) -> Self {
-        let config = &config.system;
-        let limit_switches: Vec<Pin> = config.limit_switches.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
-        let h_bridge:Vec<HBridgePinPair> = config.motors.iter().map(|(_, pin)| [Pin::new(pin[0]), Pin::new(pin[1])]).collect::<Vec<_>>().try_into().unwrap();
-        let status_leds = config.status_leds.iter().map(|(_, pin)| Pin::new(*pin)).collect::<Vec<_>>().try_into().unwrap();
+        let mut config = config.system.clone();
+        let limit_switches: HashMap<String, Pin> = config
+            .limit_switches
+            .drain()
+            .map(|(name, pin)| (name, Pin::new(pin as u64)))
+            .collect();
+        let h_bridge: HashMap<String, HBridgePinPair> = config
+            .motors
+            .drain()
+            .map(|(name, pins)| {
+                (name, [Pin::new(pins[0]), Pin::new(pins[1])])
+            })
+            .collect();
+        let status_leds: HashMap<String, Pin> = config.status_leds.drain().map(|(name, pin)| (name, Pin::new(pin))).collect();
         // udev takes ~80ms to export the pins
         sleep(Duration::from_millis(100)).await;
         Self {
@@ -40,14 +51,14 @@ impl LocalConnections {
     }
 
     pub fn setup_pins(&mut self) -> Result<()> {
-        for input_pin in self.limit_switches.iter_mut() {
+        for input_pin in self.limit_switches.values_mut() {
             input_pin.set_direction(Direction::In)?;
         }
-        for output_pin in self.h_bridge.iter_mut() {
+        for output_pin in self.h_bridge.values_mut() {
             output_pin[0].set_direction(Direction::Out)?;
             output_pin[1].set_direction(Direction::Out)?;
         }
-        for output_pin in self.status_leds.iter_mut() {
+        for output_pin in self.status_leds.values_mut() {
             output_pin.set_direction(Direction::Out)?;
         }
         Ok(())
