@@ -85,12 +85,13 @@ impl PadState {
                     .timeout(std::time::Duration::from_millis(1000)),
             )?
         );
+        debug!("Trying to get version");
         let mut buf = [0u8; 64];
         let op = Operation::VersionReport;
         let coded = to_slice(&op, &mut buf)?;
         self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.write_all(coded).await?;
         let read = self.serial.as_mut().ok_or_else(|| eyre!("No PAD serial device found"))?.read(&mut buf).await?;
-        let pad_version = from_bytes::<String>(&buf[..read])?;
+        let pad_version = String::from_utf8(buf[..read].to_vec())?;
         info!("PAD reported version: {}", pad_version);
         Ok(())
     }
