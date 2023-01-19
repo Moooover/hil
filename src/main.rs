@@ -28,6 +28,7 @@ async fn main() -> Result<()> {
     let (send_to_local, mut recv_from_server_local) = tokio::sync::mpsc::channel::<local::LocalRequest>(100);
 
     let mut local_connections = local::LocalConnections::from_config(&config).await;
+    local_connections.setup_pins()?;
     let local_connections_handle = tokio::spawn(async move {
         loop {
             let request = recv_from_server_local.recv().await.unwrap();
