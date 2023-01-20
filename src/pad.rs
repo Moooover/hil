@@ -151,7 +151,7 @@ impl PadState {
                     PadResponse::EncoderValue(encoder_values[pad_rq.id as usize]),
                 ))
             }
-            HardwareRequest::PadReset => {
+            HardwareRequest::EncoderReset => {
                 let op = Operation::Reset;
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;

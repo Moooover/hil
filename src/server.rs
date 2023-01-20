@@ -14,7 +14,7 @@ pub enum HardwareRequest {
     EncoderRead { encoder: String },
     SwitchRead { switch: String },
     LedWrite { led: String, state: u8 },
-    PadReset,
+    EncoderReset,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
