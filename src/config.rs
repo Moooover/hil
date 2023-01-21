@@ -17,6 +17,8 @@ pub struct SystemConfig {
     pub motors: HashMap<String, [u64; 2]>,
     pub limit_switches: HashMap<String, u64>,
     pub status_leds: HashMap<String, u64>,
+    pub pca9685_path: String,
+    pub servos: HashMap<String, u8>,
 }
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -31,8 +33,11 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
+            // HardwareRequest::ServoWrite { servo, position: _ } => {
+            //     self.pad.servos.get(servo).map(|port| Handler::Pad(*port))
+            // }
             HardwareRequest::ServoWrite { servo, position: _ } => {
-                self.pad.servos.get(servo).map(|port| Handler::Pad(*port))
+                self.system.servos.get(servo).map(|_| Handler::System)
             }
             HardwareRequest::MotorWrite { motor, command: _ } => self
                 .pad

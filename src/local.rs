@@ -5,14 +5,20 @@ use std::collections::HashMap;
 use sysfs_gpio::{Direction, Pin};
 use tokio::sync::oneshot;
 use tokio::time::{sleep, Duration};
+use linux_embedded_hal::I2cdev;
+use pwm_pca9685 as pca9685;
+use pwm_pca9685::{Channel, Pca9685};
 use tracing::debug;
 
 type HBridgePinPair = [Pin; 2];
-#[derive(Debug)]
 pub struct LocalConnections {
     limit_switches: HashMap<String, Pin>,
     h_bridge: HashMap<String, HBridgePinPair>,
     status_leds: HashMap<String, Pin>,
+    servos: HashMap<String, Channel>,
+    pwm_device: Pca9685<I2cdev>,
+    pwm_freq: u32,
+    pwm_adc_max_value: u32,
 }
 
 #[derive(Debug)]
@@ -55,11 +61,49 @@ impl LocalConnections {
             .for_each(|pins| pins.iter().for_each(|pin| pin.export().unwrap()));
         status_leds.values().for_each(|pin| pin.export().unwrap());
         sleep(Duration::from_millis(100)).await;
+
+        let dev = I2cdev::new(config.pca9685_path).unwrap();
+        let pwm_device = Pca9685::new(dev, pca9685::Address::default()).unwrap();
+
+        let servos: HashMap<String, Channel> = config
+            .servos
+            .drain()
+            .map(|(name, channel)| match channel {
+                0 => (name, Channel::C0),
+                1 => (name, Channel::C1),
+                2 => (name, Channel::C2),
+                3 => (name, Channel::C3),
+                4 => (name, Channel::C4),
+                5 => (name, Channel::C5),
+                6 => (name, Channel::C6),
+                7 => (name, Channel::C7),
+                8 => (name, Channel::C8),
+                9 => (name, Channel::C9),
+                10 => (name, Channel::C10),
+                11 => (name, Channel::C11),
+                12 => (name, Channel::C12),
+                13 => (name, Channel::C13),
+                14 => (name, Channel::C14),
+                15 => (name, Channel::C15),
+                _ => panic!("Invalid servo channel"),
+            })
+            .collect();
         Self {
             limit_switches,
             h_bridge,
             status_leds,
+            pwm_device,
+            servos,
+            pwm_freq: 60,
+            pwm_adc_max_value: 4095,
         }
+    }
+    fn microseconds_to_analog_value(&self, microseconds: u16) -> u16 {
+        let microseconds = microseconds as f32;
+        let microseconds = microseconds / 1000_000.0;
+        let microseconds = microseconds * self.pwm_freq as f32;
+        let microseconds = microseconds * self.pwm_adc_max_value as f32;
+        microseconds as u16
     }
 
     pub fn setup_pins(&mut self) -> Result<()> {
@@ -91,6 +135,14 @@ impl LocalConnections {
                     .ok_or(Error::msg("Invalid switch id"))?;
                 let value = pin.get_value()?;
                 Ok((lrq.tx, LocalResponse::SwitchOn(value == 1)))
+            }
+            HardwareRequest::ServoWrite { servo, position } => {
+                let value = self.microseconds_to_analog_value(position);
+                debug!("Handling servo write to position: {}", position);
+                self.pwm_device.set_channel_on_off(*self.servos
+                    .get(&servo)
+                    .ok_or(Error::msg("Invalid servo id"))?, 0, value).unwrap();
+                Ok((lrq.tx, LocalResponse::Ok))
             }
             HardwareRequest::LedWrite { led, state } => {
                 let pin = self
