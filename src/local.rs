@@ -63,7 +63,11 @@ impl LocalConnections {
         sleep(Duration::from_millis(100)).await;
 
         let dev = I2cdev::new(config.pca9685_path).unwrap();
-        let pwm_device = Pca9685::new(dev, pca9685::Address::default()).unwrap();
+        let mut pwm_device = Pca9685::new(dev, pca9685::Address::default()).unwrap();
+        pwm_device.set_prescale(100).unwrap();
+        pwm_device.enable().unwrap();
+        // pwm.set_all_on_off(&[0; 16], &[0; 16]).unwrap();
+
 
         let servos: HashMap<String, Channel> = config
             .servos
