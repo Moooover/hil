@@ -104,7 +104,7 @@ impl PadState {
             .ok_or_else(|| eyre!("No PAD serial device found"))?
             .read(&mut buf)
             .await?;
-        let pad_version = String::from_utf8(buf[..read].to_vec())?;
+        let pad_version: String = from_bytes(&buf[..read])?;
         info!("PAD reported version: {}", pad_version);
         Ok(())
     }
