@@ -24,7 +24,8 @@ analog_camera1_tilt = 1
 
 [system]
 [system.motors]
-bio_arm_vertial = [396, 466]
+bio_arm_vertical = [394, 467]
+bio_arm_centrifuge = [397, 255]
 [system.limit_switches]
 # test_one = 397
 [system.status_leds]
