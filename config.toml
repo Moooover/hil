@@ -23,6 +23,10 @@ analog_camera1_tilt = 1
 
 
 [system]
+pca9685_path = "/dev/i2c-1"
+[system.servos]
+analog_camera1_pan = 0
+analog_camera1_tilt = 1
 [system.motors]
 bio_arm_vertical = [394, 467]
 bio_arm_centrifuge = [397, 255]
