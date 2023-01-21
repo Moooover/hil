@@ -1,6 +1,6 @@
 use crate::config::{Config, Handler};
-use crate::pad::{PadRequest, PadResponse};
 use crate::local::{LocalRequest, LocalResponse};
+use crate::pad::{PadRequest, PadResponse};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -75,7 +75,7 @@ pub async fn handle_stream(
                     if let Err(e) = stream.write_all(resp).await {
                         error!("Error writing to stream: {}", e);
                     }
-                },
+                }
                 HardwareResponse::SwitchOn(v) => {
                     let encoded_resp = serde_json::to_string(&v)?;
                     info!("Received switch value, writing back to client");
@@ -86,7 +86,7 @@ pub async fn handle_stream(
                     if let Err(e) = stream.write_all(resp).await {
                         error!("Error writing to stream: {}", e);
                     }
-                },
+                }
                 HardwareResponse::Ok => {}
             }
         }

@@ -11,7 +11,8 @@ enum Operation {
 
 fn main() {
     let mut port = serialport::new("/dev/ttyACM0", 9600).open().unwrap();
-    port.set_timeout(std::time::Duration::from_millis(1000)).unwrap();
+    port.set_timeout(std::time::Duration::from_millis(1000))
+        .unwrap();
     let mut buf = [0u8; 1024];
 
     let args: Vec<String> = std::env::args().collect();
@@ -24,5 +25,4 @@ fn main() {
     let _ = port.write(coded).unwrap();
     println!("Written bytes: {:?}", coded);
     std::thread::sleep(std::time::Duration::from_millis(100));
-    
 }

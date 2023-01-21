@@ -1,12 +1,12 @@
 // Setup a tokio server which listens to UNIX socket connections
 mod config;
+mod local;
 mod pad;
 mod server;
-mod local;
 use eyre::{Result, WrapErr};
 use std::sync::Arc;
 use tokio::net::UnixListener;
-use tracing::{debug, warn, error, info};
+use tracing::{debug, error, info, warn};
 
 use git_version::git_version;
 const GIT_VERSION: &str = git_version!();
@@ -25,18 +25,23 @@ async fn main() -> Result<()> {
     }
     let listener = UnixListener::bind("/tmp/hardware.sock").unwrap();
     let (send_to_pad, mut recv_from_server) = tokio::sync::mpsc::channel::<pad::PadRequest>(100);
-    let (send_to_local, mut recv_from_server_local) = tokio::sync::mpsc::channel::<local::LocalRequest>(100);
+    let (send_to_local, mut recv_from_server_local) =
+        tokio::sync::mpsc::channel::<local::LocalRequest>(100);
 
     let mut local_connections = local::LocalConnections::from_config(&config).await;
     local_connections.setup_pins()?;
     let local_connections_handle = tokio::spawn(async move {
         loop {
             let request = recv_from_server_local.recv().await.unwrap();
-            let (send_to_server, response) = local_connections.respond(request).wrap_err("Error responging to a LocalRequest").unwrap();
-            if matches!(response, local::LocalResponse::SwitchOn(_)) &&
-                send_to_server.send(response).is_err() {
-                    error!("Could not send back Switch state, receiver dropped.");
-                    break;
+            let (send_to_server, response) = local_connections
+                .respond(request)
+                .wrap_err("Error responging to a LocalRequest")
+                .unwrap();
+            if matches!(response, local::LocalResponse::SwitchOn(_))
+                && send_to_server.send(response).is_err()
+            {
+                error!("Could not send back Switch state, receiver dropped.");
+                break;
             }
         }
     });

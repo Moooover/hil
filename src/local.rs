@@ -1,11 +1,11 @@
-use sysfs_gpio::{Direction, Pin};
-use eyre::{Result, Error};
-use tracing::{debug};
-use tokio::time::{sleep, Duration};
-use tokio::sync::oneshot;
-use std::collections::HashMap;
 use crate::config::Config;
 use crate::server::HardwareRequest;
+use eyre::{Error, Result};
+use std::collections::HashMap;
+use sysfs_gpio::{Direction, Pin};
+use tokio::sync::oneshot;
+use tokio::time::{sleep, Duration};
+use tracing::debug;
 
 type HBridgePinPair = [Pin; 2];
 #[derive(Debug)]
@@ -38,21 +38,27 @@ impl LocalConnections {
         let h_bridge: HashMap<String, HBridgePinPair> = config
             .motors
             .drain()
-            .map(|(name, pins)| {
-                (name, [Pin::new(pins[0]), Pin::new(pins[1])])
-            })
+            .map(|(name, pins)| (name, [Pin::new(pins[0]), Pin::new(pins[1])]))
             .collect();
-        let status_leds: HashMap<String, Pin> = config.status_leds.drain().map(|(name, pin)| (name, Pin::new(pin))).collect();
+        let status_leds: HashMap<String, Pin> = config
+            .status_leds
+            .drain()
+            .map(|(name, pin)| (name, Pin::new(pin)))
+            .collect();
         // udev takes ~80ms to export the pins
-        
-        limit_switches.values().for_each(|pin| pin.export().unwrap());
-        h_bridge.values().for_each(|pins| pins.iter().for_each(|pin| pin.export().unwrap()));
+
+        limit_switches
+            .values()
+            .for_each(|pin| pin.export().unwrap());
+        h_bridge
+            .values()
+            .for_each(|pins| pins.iter().for_each(|pin| pin.export().unwrap()));
         status_leds.values().for_each(|pin| pin.export().unwrap());
         sleep(Duration::from_millis(100)).await;
         Self {
             limit_switches,
             h_bridge,
-            status_leds
+            status_leds,
         }
     }
 
@@ -73,25 +79,37 @@ impl LocalConnections {
         Ok(())
     }
 
-    pub fn respond(&mut self, lrq: LocalRequest) -> Result<(oneshot::Sender<LocalResponse>, LocalResponse)> {
+    pub fn respond(
+        &mut self,
+        lrq: LocalRequest,
+    ) -> Result<(oneshot::Sender<LocalResponse>, LocalResponse)> {
         match lrq.body {
             HardwareRequest::SwitchRead { switch } => {
-                let pin = self.limit_switches.get(&switch).ok_or(Error::msg("Invalid switch id"))?;
+                let pin = self
+                    .limit_switches
+                    .get(&switch)
+                    .ok_or(Error::msg("Invalid switch id"))?;
                 let value = pin.get_value()?;
                 Ok((lrq.tx, LocalResponse::SwitchOn(value == 1)))
-            },
+            }
             HardwareRequest::LedWrite { led, state } => {
-                let pin = self.status_leds.get(&led).ok_or(Error::msg("Invalid led id"))?;
+                let pin = self
+                    .status_leds
+                    .get(&led)
+                    .ok_or(Error::msg("Invalid led id"))?;
                 pin.set_value(state)?;
                 Ok((lrq.tx, LocalResponse::Ok))
-            },
+            }
             HardwareRequest::MotorWrite { motor, command } => {
-                let h_bridge = self.h_bridge.get(&motor).ok_or(Error::msg("Invalid h-bridge id"))?;
+                let h_bridge = self
+                    .h_bridge
+                    .get(&motor)
+                    .ok_or(Error::msg("Invalid h-bridge id"))?;
                 let value = command[0];
                 self.write_h_bridge(*h_bridge, value)?;
                 Ok((lrq.tx, LocalResponse::Ok))
-            },
-            _ => Err(Error::msg("Could not handle request locally"))
+            }
+            _ => Err(Error::msg("Could not handle request locally")),
         }
     }
 
@@ -100,11 +118,11 @@ impl LocalConnections {
             65..=127 | 193..=u8::MAX => {
                 h_bridge[0].set_value(1)?;
                 h_bridge[1].set_value(0)?;
-            },
+            }
             1..=63 | 128..=190 => {
                 h_bridge[0].set_value(0)?;
                 h_bridge[1].set_value(1)?;
-            },
+            }
             // The reason why 191 is here, is due rounding down in affine_transform in wroom
             // With that, someone may think, that 191 corresponds to a rest position, which may be true
             // for Sabertooth, but for the H-Bridge, there's no speed control, only discrete
@@ -112,14 +130,16 @@ impl LocalConnections {
             0 | 64 | 191 | 192 => {
                 h_bridge[0].set_value(0)?;
                 h_bridge[1].set_value(0)?;
-            },
+            }
         }
         Ok(())
     }
 }
 
 impl LocalRequest {
-    pub fn from_hardware_request(body: HardwareRequest) -> (tokio::sync::oneshot::Receiver<LocalResponse>, Self) {
+    pub fn from_hardware_request(
+        body: HardwareRequest,
+    ) -> (tokio::sync::oneshot::Receiver<LocalResponse>, Self) {
         let (tx, rx) = tokio::sync::oneshot::channel();
         (rx, Self { body, tx })
     }

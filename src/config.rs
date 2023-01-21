@@ -31,25 +31,23 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
-            HardwareRequest::ServoWrite { servo, position: _ } => self.pad.servos.get(servo).map(|port| Handler::Pad(*port)),
+            HardwareRequest::ServoWrite { servo, position: _ } => {
+                self.pad.servos.get(servo).map(|port| Handler::Pad(*port))
+            }
             HardwareRequest::MotorWrite { motor, command: _ } => self
                 .pad
                 .motors
                 .get(motor)
                 .map(|port| Handler::Pad(*port))
-                .or_else(|| {
-                    self.system
-                        .motors
-                        .get(motor)
-                        .map(|_| Handler::System)
-                }),
+                .or_else(|| self.system.motors.get(motor).map(|_| Handler::System)),
             HardwareRequest::EncoderRead { encoder } => self
                 .pad
                 .encoders
                 .get(encoder)
                 .map(|port| Handler::Pad(*port)),
             HardwareRequest::EncoderReset => Some(Handler::Pad(0)),
-            HardwareRequest::SwitchRead {switch: _} | HardwareRequest::LedWrite {led: _, state: _} => Some(Handler::System),
+            HardwareRequest::SwitchRead { switch: _ }
+            | HardwareRequest::LedWrite { led: _, state: _ } => Some(Handler::System),
         }
     }
 }
