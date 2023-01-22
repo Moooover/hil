@@ -33,7 +33,7 @@ pub enum Handler {
 impl Config {
     pub fn resolve(&self, hrq: &HardwareRequest) -> Option<Handler> {
         match hrq {
-            HardwareRequest::ServoWrite { servo, position: _ } => {
+            HardwareRequest::ServoWrite { servo, position: _, duty: _ } => {
                 self.pad.servos.get(servo).map(|port| Handler::Pad(*port))
             }
             HardwareRequest::MotorWrite { motor, command: _ } => self

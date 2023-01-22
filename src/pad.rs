@@ -138,8 +138,9 @@ impl PadState {
             HardwareRequest::ServoWrite {
                 servo: _,
                 position: value,
+                duty,
             } => {
-                let op = Operation::PwmWrite(pad_rq.id, self.microseconds_to_analog_value(value));
+                let op = Operation::PwmWrite(pad_rq.id, duty.unwrap_or(self.microseconds_to_analog_value(value)));
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
                 self.serial
