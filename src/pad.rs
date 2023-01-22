@@ -182,7 +182,7 @@ impl PadState {
                     .ok_or_else(|| eyre!("No PAD serial device found"))?
                     .read(&mut buf)
                     .await?;
-                let encoder_values: [i32; 5] = from_bytes(&buf[..read])?;
+                let encoder_values: [i32; 6] = from_bytes(&buf[..read])?;
                 debug!("Encoder values: {:?}", encoder_values);
                 Ok((
                     pad_rq.tx,
