@@ -12,7 +12,7 @@ use tracing::{debug, error, info, span, trace, warn, Level};
 enum Operation {
     KeepAlive,
     SabertoothWrite(u8, u8),
-    SmartelexWrite(u8, [u8; 5]),
+    SensorRead,
     EncoderRead,
     PwmWrite(u8, u16),
     VersionReport,
@@ -44,6 +44,7 @@ impl PadRequest {
 #[derive(Debug, Clone)]
 pub enum PadResponse {
     EncoderValue(i32),
+    SensorValue(u16),
     Ok,
 }
 
@@ -201,7 +202,29 @@ impl PadState {
                 debug!("Written bytes: {:?}", coded);
                 Ok((pad_rq.tx, PadResponse::Ok))
             }
-            _ => {
+            HardwareRequest::SensorRead => {
+                let op = Operation::SensorRead;
+                let mut buf = [0u8; 64];
+                let coded = to_slice(&op, &mut buf)?;
+                self.serial
+                    .as_mut()
+                    .ok_or_else(|| eyre!("No PAD serial device found"))?
+                    .write_all(coded)
+                    .await?;
+                let read = self
+                    .serial
+                    .as_mut()
+                    .ok_or_else(|| eyre!("No PAD serial device found"))?
+                    .read(&mut buf)
+                    .await?;
+                let sensor_values: u16 = from_bytes(&buf[..read])?;
+                debug!("Sensor values: {:?}", sensor_values);
+                Ok((
+                    pad_rq.tx,
+                    PadResponse::SensorValue(sensor_values),
+                ))
+            }
+            HardwareRequest::SwitchRead {switch: _} | HardwareRequest::LedWrite {led: _, state: _} => {
                 warn!(
                     "PadState::respond: Unimplemented request: {:?}",
                     pad_rq.body

@@ -15,10 +15,12 @@ pub enum HardwareRequest {
     SwitchRead { switch: String },
     LedWrite { led: String, state: u8 },
     EncoderReset,
+    SensorRead,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareResponse {
     EncoderValue(i32),
+    SensorValue(u16),
     SwitchOn(bool),
     Ok,
 }
@@ -26,6 +28,7 @@ impl HardwareResponse {
     pub fn from_pad_response(pr: PadResponse) -> Self {
         match pr {
             PadResponse::EncoderValue(v) => Self::EncoderValue(v),
+            PadResponse::SensorValue(v) => Self::SensorValue(v),
             PadResponse::Ok => Self::Ok,
         }
     }
@@ -76,6 +79,17 @@ pub async fn handle_stream(
                         error!("Error writing to stream: {}", e);
                     }
                 }
+                HardwareResponse::SensorValue(v) => {
+                    let encoded_resp = serde_json::to_string(&v)?;
+                    info!("Received sensor value, writing back to client");
+                    debug!("Encoded response: {:?}", encoded_resp);
+                    let resp = encoded_resp.as_bytes();
+                    stream.writable().await?;
+
+                    if let Err(e) = stream.write_all(resp).await {
+                        error!("Error writing to stream: {}", e);
+                    }
+                }
                 HardwareResponse::SwitchOn(v) => {
                     let encoded_resp = serde_json::to_string(&v)?;
                     info!("Received switch value, writing back to client");
@@ -101,7 +115,7 @@ async fn handle_request(
 ) -> HardwareResponse {
     match config.resolve(&req) {
         Some(Handler::Pad(port)) => {
-            let wait_for_response = matches!(req, HardwareRequest::EncoderRead { .. });
+            let wait_for_response = matches!(req, HardwareRequest::EncoderRead { .. }) || matches!(req, HardwareRequest::SensorRead { .. });
             debug!("Sending request to pad");
             let (recv_from_pad, pad_req) = PadRequest::from_hardware_request(port, req);
             send_to_pad.send(pad_req).await.unwrap();

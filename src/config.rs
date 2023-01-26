@@ -47,7 +47,7 @@ impl Config {
                 .encoders
                 .get(encoder)
                 .map(|port| Handler::Pad(*port)),
-            HardwareRequest::EncoderReset => Some(Handler::Pad(0)),
+            HardwareRequest::EncoderReset | HardwareRequest::SensorRead => Some(Handler::Pad(0)),
             HardwareRequest::SwitchRead { switch: _ }
             | HardwareRequest::LedWrite { led: _, state: _ } => Some(Handler::System),
         }
