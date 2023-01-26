@@ -16,7 +16,7 @@ enum Operation {
     EncoderRead,
     PwmWrite(u8, u16),
     VersionReport,
-    Reset,
+    EncoderReset,
 }
 
 #[derive(Debug)]
@@ -155,8 +155,7 @@ impl PadState {
             HardwareRequest::MotorWrite { motor: _, command } => {
                 let op = match command.len() {
                     1 => Operation::SabertoothWrite(pad_rq.id, command[0]),
-                    5 => Operation::SmartelexWrite(pad_rq.id, command.as_slice().try_into()?),
-                    _ => panic!("MotorWrite Command received has invalid command length. Expected 1 or 5, got {}. Command: {:?}", command.len(), command),
+                    _ => panic!("MotorWrite Command received has invalid command length. Expected 1, got {}. Command: {:?}", command.len(), command),
                 };
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
@@ -191,7 +190,7 @@ impl PadState {
                 ))
             }
             HardwareRequest::EncoderReset => {
-                let op = Operation::Reset;
+                let op = Operation::EncoderReset;
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
                 self.serial
