@@ -16,7 +16,7 @@ pub struct LocalConnections {
     h_bridge: HashMap<String, HBridgePinPair>,
     status_leds: HashMap<String, Pin>,
     servos: HashMap<String, Channel>,
-    pwm_device: Pca9685<I2cdev>,
+    // pwm_device: Pca9685<I2cdev>,
     pwm_freq: u32,
     pwm_adc_max_value: u32,
 }
@@ -62,10 +62,10 @@ impl LocalConnections {
         status_leds.values().for_each(|pin| pin.export().unwrap());
         sleep(Duration::from_millis(100)).await;
 
-        let dev = I2cdev::new(config.pca9685_path).unwrap();
-        let mut pwm_device = Pca9685::new(dev, pca9685::Address::default()).unwrap();
-        pwm_device.set_prescale(100).unwrap();
-        pwm_device.enable().unwrap();
+        // let dev = I2cdev::new(config.pca9685_path).unwrap();
+        // let mut pwm_device = Pca9685::new(dev, pca9685::Address::default()).unwrap();
+        // pwm_device.set_prescale(100).unwrap();
+        // pwm_device.enable().unwrap();
         // pwm.set_all_on_off(&[0; 16], &[0; 16]).unwrap();
 
 
@@ -96,7 +96,7 @@ impl LocalConnections {
             limit_switches,
             h_bridge,
             status_leds,
-            pwm_device,
+            // pwm_device,
             servos,
             pwm_freq: 60,
             pwm_adc_max_value: 4095,
@@ -143,9 +143,9 @@ impl LocalConnections {
             HardwareRequest::ServoWrite { servo, position, duty } => {
                 let value = duty.unwrap_or(self.microseconds_to_analog_value(position));
                 debug!("Handling servo write to position: {}", position);
-                self.pwm_device.set_channel_on_off(*self.servos
-                    .get(&servo)
-                    .ok_or(Error::msg("Invalid servo id"))?, 0, value).unwrap();
+                // self.pwm_device.set_channel_on_off(*self.servos
+                //     .get(&servo)
+                //     .ok_or(Error::msg("Invalid servo id"))?, 0, value).unwrap();
                 Ok((lrq.tx, LocalResponse::Ok))
             }
             HardwareRequest::LedWrite { led, state } => {

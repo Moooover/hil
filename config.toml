@@ -9,6 +9,9 @@ suspension_rear = 2
 bio_arm_yaw = 3
 bio_arm_auger = 3
 
+arm_lower_cycloidal = 3
+arm_yaw = 3
+
 [pad.encoders]
 drive_front_left = 2
 drive_front_right = 1
@@ -20,6 +23,11 @@ arm_upper = 4
 [pad.servos]
 analog_camera1_pan = 0
 analog_camera1_tilt = 1
+
+arm_pitch = 3
+arm_roll = 4
+
+arm_pwm_upper_cycloidal = 2
 
 
 [system]
