@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
             pad_req = recv_from_server.recv() => {
                 debug!("Got request from server: {:?}", pad_req);
                 let (send_to_server, response) = pad.respond(pad_req.unwrap()).await.wrap_err("Error responding to pad request").unwrap();
-                if matches!(response, pad::PadResponse::EncoderValue(_)) &&
+                if (matches!(response, pad::PadResponse::EncoderValue(_)) || matches!(response, pad::PadResponse::SensorValue(_))) &&
                     send_to_server.send(response).is_err() {
                         error!("Could not send back encoder values, receiver dropped.");
                         break;
