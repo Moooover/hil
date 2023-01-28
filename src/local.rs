@@ -140,8 +140,9 @@ impl LocalConnections {
                 let value = pin.get_value()?;
                 Ok((lrq.tx, LocalResponse::SwitchOn(value == 1)))
             }
-            HardwareRequest::ServoWrite { servo, position, duty } => {
+            HardwareRequest::ServoWrite { servo, position, duty, start } => {
                 let value = duty.unwrap_or(self.microseconds_to_analog_value(position));
+                let start = start.unwrap_or(0);
                 debug!("Handling servo write to position: {}", position);
                 // self.pwm_device.set_channel_on_off(*self.servos
                 //     .get(&servo)

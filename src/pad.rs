@@ -14,7 +14,7 @@ enum Operation {
     SabertoothWrite(u8, u8),
     SensorRead,
     EncoderRead,
-    PwmWrite(u8, u16),
+    PwmStartEndWrite(u8, u16, u16),
     VersionReport,
     EncoderReset,
 }
@@ -140,8 +140,9 @@ impl PadState {
                 servo: _,
                 position: value,
                 duty,
+                start,
             } => {
-                let op = Operation::PwmWrite(pad_rq.id, duty.unwrap_or(self.microseconds_to_analog_value(value)));
+                let op = Operation::PwmStartEndWrite(pad_rq.id, start.unwrap_or(0), duty.unwrap_or(self.microseconds_to_analog_value(value)));
                 let mut buf = [0u8; 64];
                 let coded = to_slice(&op, &mut buf)?;
                 self.serial

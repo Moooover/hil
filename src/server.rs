@@ -10,7 +10,7 @@ use tracing::{debug, error, info, warn};
 #[derive(Serialize, Deserialize, Debug)]
 pub enum HardwareRequest {
     MotorWrite { motor: String, command: Vec<u8> },
-    ServoWrite { servo: String, position: u16, duty: Option<u16> },
+    ServoWrite { servo: String, position: u16, duty: Option<u16>, start: Option<u16> },
     EncoderRead { encoder: String },
     SwitchRead { switch: String },
     LedWrite { led: String, state: u8 },
